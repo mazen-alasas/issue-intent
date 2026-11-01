@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Local datasets
+data/raw/
+data/interim/
+data/processed/
+
+# Model artifacts
+artifacts/
+checkpoints/
+mlruns/
+
+# Editors and operating system
+.vscode/
+.idea/
+.DS_Store
