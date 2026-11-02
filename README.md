@@ -2,45 +2,67 @@
 
 **NLP-based GitHub Issue Type Classification**
 
-issue-intent is a machine learning project focused on classifying real-world GitHub issues into four categories:
+issue-intent is an NLP and machine learning engineering project focused on classifying real-world GitHub issues into four categories:
 
 - **Bug:** Reports describing incorrect or unexpected software behavior.
 - **Feature:** Requests for new functionality or improvements.
 - **Question:** Requests for information, guidance, or clarification.
 - **Documentation:** Reports or requests related to documentation.
 
-The project explores traditional NLP, neural networks, and transformer-based models, with an emphasis on reproducibility, evaluation quality, and practical deployment.
+The project compares classical NLP, neural networks, and transformer-based models, with an emphasis on reproducibility, reliable evaluation, and practical deployment.
 
 ## Dataset
 
-The planned dataset is from the [NLBSE 2023 Issue Report Classification Competition](https://github.com/nlbse2023/issue-report-classification).
+The project uses the [NLBSE 2023 Issue Report Classification Competition](https://github.com/nlbse2023/issue-report-classification) dataset.
 
-The published dataset contains approximately 1.42 million labeled GitHub issues, split into official training and test sets.
+The official dataset contains approximately **1.42 million labeled GitHub issues**, divided into:
 
-Dataset accessibility, schema, licensing, and integrity have not yet been verified locally.
+- **Training set:** 1,275,881 issues
+- **Test set:** 142,320 issues
+
+The training dataset has been downloaded and audited. The official test set is reserved for final evaluation and will not be used during model development or hyperparameter tuning.
+
+The initial feasibility audit identified:
+
+- Class imbalance, with Bug and Feature representing approximately 90% of training examples.
+- Missing issue titles and bodies.
+- Long issue descriptions containing Markdown, code blocks, links, and other structured text.
+- 53,459 duplicate title–body occurrences.
+- 440 unique title–body groups with conflicting labels, involving 4,146 rows.
+
+These findings inform the project's data preparation and evaluation strategy.
 
 ## Project Goals
 
 - Audit and validate real-world issue data.
 - Investigate class imbalance, label noise, and data leakage.
-- Establish reproducible training and evaluation pipelines.
-- Compare TF-IDF-based models, a neural baseline, and transformers.
-- Evaluate classification performance, latency, and resource requirements.
+- Establish reproducible data preparation, training, and evaluation pipelines.
+- Compare TF-IDF-based models, a neural baseline, and transformer-based models.
+- Evaluate classification performance, inference latency, and resource requirements.
 - Serve the selected model through a tested REST API.
 - Package the application with Docker and establish CI.
 
 ## Technology Stack
 
-Current development tools:
+**Current development tools:**
 
 - Python 3.11
 - uv
+- pandas
 - pytest
 - Ruff
 
-Planned tools include Polars, scikit-learn, PyTorch, Hugging Face Transformers, MLflow, FastAPI, Docker, and GitHub Actions.
+**Planned tools:**
 
-Tools will be introduced incrementally as needed.
+- scikit-learn
+- PyTorch
+- Hugging Face Transformers
+- MLflow
+- FastAPI
+- Docker
+- GitHub Actions
+
+Additional tools will be introduced only when justified by project requirements.
 
 ## Development Setup
 
@@ -49,38 +71,64 @@ Clone the repository:
 ```bash
 git clone git@github.com:mazen-alasas/issue-intent.git
 cd issue-intent
-````
+```
 
 Install the environment:
 
-```
+```bash
 uv sync
 ```
 
-Run quality checks:
+Run code quality checks:
 
-```
+```bash
 uv run ruff check .
 uv run ruff format --check .
+```
+
+Run tests when implemented:
+
+```bash
 uv run pytest
 ```
 
 ## Project Status
 
-Stage: Repository Foundation
+| Stage | Status |
+|---|---|
+| Repository Foundation | Completed |
+| Dataset Feasibility | Completed |
+| Data Quality | Next |
+| Evaluation Protocol | Planned |
+| Classical NLP | Planned |
+| Neural NLP | Planned |
+| Transformer Fine-Tuning | Planned |
+| Final Evaluation | Planned |
+| API & Docker | Planned |
+| Portfolio Release | Planned |
 
-The project is being initialized. No dataset analysis, model training, benchmark evaluation, or deployment has been completed yet.
+The initial dataset feasibility audit is complete. The next stage focuses on implementing reproducible data preparation, including missing-value handling, exact-text deduplication, and conflicting-label exclusion.
 
-See [Project Plan](https://docs/PROJECT_PLAN.md?utm_source=chatgpt.com) and [Progress](https://docs/PROGRESS.md?utm_source=chatgpt.com).
+No model training or final benchmark evaluation has been performed yet.
+
+For further details, see the [Project Plan](docs/PROJECT_PLAN.md), [Progress](docs/PROGRESS.md), and [Dataset Feasibility Notebook](notebooks/01_dataset_feasibility.ipynb).
 
 ## Evaluation Principles
 
-The official test set will be reserved for final evaluation. Model development and hyperparameter selection will use training-derived validation data.
+The official test set is reserved for final evaluation. Model development and hyperparameter selection will use validation data derived exclusively from the official training set.
 
-Primary metric: Micro F1.
+**Primary metric:** Micro F1.
 
-Additional metrics: Macro F1, per-class Precision/Recall/F1, confusion matrix, and inference latency.
+**Additional metrics:**
+
+- Macro F1 and Weighted F1
+- Per-class Precision, Recall, and F1
+- Confusion Matrix
+- Inference Latency
+- Model Size
+
+All modeling approaches will follow a consistent evaluation protocol to support fair comparisons.
 
 ## License
 
-A code license has not been selected yet. Dataset usage and redistribution conditions will be reviewed during dataset feasibility analysis.
+A code license has not yet been selected. Dataset usage and redistribution conditions require further review before distributing dataset-derived artifacts.
