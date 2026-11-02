@@ -2,13 +2,12 @@
 
 ## Current Status
 
-- Project: issue-intent
-- Stage: Repository Foundation
-- Working branch: main
-- Repository: git@github.com:mazen-alasas/issue-intent.git
-- Local path: /home/mazen/issue-intent
-- Latest commit: None (initial commit pending)
-- Last update: 2026-11-01
+- **Project:** issue-intent
+- **Current stage:** Data Quality (next to implement)
+- **Current working branch:** `dataset-feasibility` (documentation finalization)
+- **Repository:** `git@github.com:mazen-alasas/issue-intent.git`
+- **Local path:** `/home/mazen/issue-intent`
+- **Last updated:** 2026-11-02
 
 ## Verified Environment
 
@@ -22,42 +21,82 @@
 - NVIDIA GTX 1650 Ti (4GB VRAM)
 - GitHub SSH authentication successful
 
-## Completed
+## Completed Stages
 
-- Initialized the local Git repository on main.
-- Configured the GitHub SSH remote.
-- Initialized the Python project with uv.
+### Repository Foundation — Completed
+
+- Initialized the Git repository and configured the SSH remote.
+- Created the Python environment using uv.
 - Installed development dependencies.
-- Configured uv for non-package mode.
-- Created the initial flat src layout.
-- Verified imports for data, features, models, api, and preprocessing.
-- Verified Ruff lint and formatting checks before adding project tests.
+- Configured uv non-package mode.
+- Established the flat `src/` directory structure.
+- Verified source imports, Ruff linting, and formatting.
+- Created and pushed the initial repository foundation and documentation.
 
-## In Progress
+### Dataset Feasibility — Completed
 
-- Finalizing project configuration.
-- Writing initial documentation.
-- Finalizing documentation and initial commit.
-- Preparing the first commit.
+- Downloaded the official NLBSE'23 training and test archives.
+- Extracted and audited the training dataset only.
+- Created `notebooks/01_dataset_feasibility.ipynb`.
+- Inspected schema, class distribution, missing values, text lengths, structured text, duplicate records, conflicting labels, and author metadata.
 
-## Not Started
+**Key findings:**
 
-- Dataset download and feasibility audit.
-- Data preprocessing and validation.
-- Model training and experiments.
-- Final benchmark evaluation.
-- API implementation.
-- Docker and CI.
+- Training rows: **1,275,881**
+- Classes: `bug`, `feature`, `question`, `documentation`
+- Class distribution:
+  - Bug: 670,951 (52.59%)
+  - Feature: 472,216 (37.01%)
+  - Question: 76,048 (5.96%)
+  - Documentation: 56,666 (4.44%)
+- Missing bodies: **4,681**
+- Missing titles: **4**
+- Unique title–body combinations: **1,222,422**
+- Duplicate text occurrences: **53,459**
+- Conflicting text groups: **440**
+- Rows belonging to conflicting groups: **4,146**
+- Median title length: **44 characters**
+- Median body length: **490 characters**
 
-## Next Actions
+**Decisions:**
 
-1. Run Ruff checks and verify the source imports.
-2. Review Git changes.
-3. Commit and push the initial project foundation.
-4. Begin dataset feasibility on a dedicated branch.
+- Preserve raw datasets unchanged.
+- Keep one representative from each exact-text group with consistent labels.
+- Exclude entire exact-text groups with conflicting labels from the primary modeling dataset.
+- Do not deduplicate based solely on `id` until its semantics are established.
+- Retain structured text initially and evaluate preprocessing variants experimentally.
+- Exclude `author_association` from initial text-only models.
+- Keep the official test set untouched until final evaluation.
+
+**Outcome:** The dataset is suitable for the planned NLP classification experiments, subject to reproducible data preparation and a leakage-aware evaluation protocol.
+
+## Current Work — Data Quality
+
+**Status:** Not started.
+
+Planned work:
+
+1. Implement `src/data/prepare.py`.
+2. Handle missing text fields.
+3. Remove consistent-label exact duplicates while retaining one representative.
+4. Exclude conflicting-label text groups.
+5. Generate a preparation report.
+6. Add data quality tests.
+7. Verify the resulting dataset and document the results.
+
+## Upcoming Stages
+
+- Evaluation Protocol
+- Classical NLP Baselines
+- Neural NLP
+- Transformer Fine-Tuning
+- Final Evaluation
+- API & Docker
+- Portfolio Release
 
 ## Notes
 
-Published benchmark results are not project results.
-
-The official test dataset must not be used for model tuning or selection.
+- Published benchmark results are not project results.
+- The official test set must not be used for model selection or hyperparameter tuning.
+- Data quality decisions must be implemented reproducibly and validated before model training.
+- No modeling results have been produced yet.
