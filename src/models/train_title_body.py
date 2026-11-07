@@ -13,32 +13,54 @@ from src.models.train_classical import (
     VALIDATION_PATH,
     build_title_pipeline,
 )
+from src.preprocessing.text import preprocess_text
 
 SAMPLE_SIZE = 200_000
 RESULTS_PATH = ROOT / "data/processed/title_body_logreg_200k_metrics.json"
 
 
-def combine_title_body(data: pd.DataFrame) -> pd.Series:
-    """Combine issue titles and raw bodies into a single text field.
+def combine_title_body(
+    data: pd.DataFrame,
+    preprocessing: str = "none",
+) -> pd.Series:
+    """Combine issue titles and bodies with optional preprocessing.
 
     Args:
         data: DataFrame containing title and body columns.
+        preprocessing: Body preprocessing strategy, either "none" or "minimal".
 
     Returns:
-        pd.Series: Combined issue text with missing values handled.
+        pd.Series: Combined issue text.
+
+    Raises:
+        ValueError: If the preprocessing strategy is unsupported.
     """
+    if preprocessing not in {"none", "minimal"}:
+        raise ValueError(f"Unsupported preprocessing strategy: {preprocessing}")
+
     title = data["title"].fillna("")
     body = data["body"].fillna("")
+
+    if preprocessing == "minimal":
+        body = body.map(preprocess_text)
 
     return title + "\n\n" + body
 
 
-def run_experiment() -> dict:
-    """Train and evaluate Logistic Regression using title and raw body.
+def run_experiment(
+    preprocessing: str = "none",
+) -> dict:
+    """Train and evaluate Logistic Regression with optional body cleaning.
+
+    Args:
+        preprocessing: Body preprocessing strategy.
 
     Returns:
         dict: Experiment configuration, timing, and evaluation metrics.
     """
+    if preprocessing not in {"none", "minimal"}:
+        raise ValueError(f"Unsupported preprocessing strategy: {preprocessing}")
+
     samples = load_nested_stratified_samples(
         csv_path=TRAIN_PATH,
         sample_sizes=[SAMPLE_SIZE],
@@ -54,8 +76,14 @@ def run_experiment() -> dict:
         keep_default_na=False,
     )
 
-    train_text = combine_title_body(train)
-    validation_text = combine_title_body(validation)
+    train_text = combine_title_body(
+        train,
+        preprocessing=preprocessing,
+    )
+    validation_text = combine_title_body(
+        validation,
+        preprocessing=preprocessing,
+    )
 
     pipeline = build_title_pipeline("logreg")
 
@@ -74,12 +102,12 @@ def run_experiment() -> dict:
     )
 
     return {
-        "experiment": "title_body_raw_logreg",
+        "experiment": f"title_body_{'raw' if preprocessing == 'none' else preprocessing}_logreg",
         "sample_size": SAMPLE_SIZE,
         "random_state": RANDOM_STATE,
         "model": "logreg",
-        "input": "title_raw_body",
-        "preprocessing": "none",
+        "input": "title_body",
+        "preprocessing": preprocessing,
         "truncation": None,
         "sampling": "stratified",
         "training_seconds": round(training_seconds, 3),
