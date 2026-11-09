@@ -1,50 +1,43 @@
 # Project Progress
 
-## Current Status
+**Project:** `issue-intent`  
+**Repository:** `git@github.com:mazen-alasas/issue-intent.git`  
+**Local path:** `/home/mazen/issue-intent`  
+**Last updated:** 2026-11-09  
+**Current stage:** Classical NLP baselines — structured preprocessing completed; full-training evaluation pending  
+**Last completed branch:** `structured-preprocessing` (merged into `main`, as reported)  
+**Next working branch:** To be verified with `git branch --show-current` before further changes. An existing `classical-baselines` branch is available.
 
-- **Project:** `issue-intent`
-- **Current stage:** Classical NLP Baselines — in progress
-- **Current working branch:** `classical-baselines` (expected; verify with `git branch --show-current`)
-- **Repository:** `git@github.com:mazen-alasas/issue-intent.git`
-- **Local path:** `/home/mazen/issue-intent`
-- **Last updated:** 2026-11-06
-- **Next experiment:** Title + Body truncation ablation, using the established raw full-body baseline for comparison
+## Executive Status
 
-## Verified Environment
+The repository foundation, dataset feasibility audit, data-quality preparation, evaluation protocol, initial classical modeling comparisons, controlled input truncation experiments, and structured preprocessing ablations have been implemented. The selected classical preprocessing configuration, E4, has been materialized as versioned Parquet train/validation datasets. The full generated dataset passed a post-build SHA-256, row-count, and schema integrity check. All tests passed before the latest reported merge; the exact final test count was not supplied.
 
-- WSL2 Ubuntu
-- Python 3.11.16 (uv environment)
-- System Python 3.12.3
-- uv 0.12.19
-- Git 2.43.0
-- pytest 9.2.0
-- Ruff 0.17.3
-- NVIDIA GTX 1650 Ti (4 GB VRAM)
-- GitHub SSH authentication successful
+**Not yet completed:** a full 1,038,684-row classical training run using `structured_v1`, a definitive LinearSVC comparison at the selected scale, neural and transformer modeling, official-test evaluation, API/serving, and portfolio release. The official NLBSE'23 test set remains reserved.
 
-Version information reflects earlier verified environment reports; versions have not been rechecked for this update.
+## Environment and Conventions
 
-## Completed Stages
+- WSL2 Ubuntu; Python 3.11.16 managed by `uv` (earlier reported `uv 0.12.19`).
+- Earlier verified tools: Git 2.43.0, pytest 9.2.0, Ruff 0.17.3; versions may have changed.
+- NVIDIA GeForce GTX 1650 Ti, reported 4 GB VRAM; local memory constraints require conservative training plans.
+- `pyarrow==26.0.1` added with `uv add pyarrow` for chunked Parquet generation.
+- Flat `src/` layout; exploratory notebooks, production-style scripts, focused tests, and tracked documentation.
+- Use `random_state=42` for established sampling/splitting experiments.
+- Keep raw datasets, generated CSV/Parquet datasets, experiment outputs, and model artifacts out of Git.
 
-### Repository Foundation — Completed
+## 1. Repository Foundation — Completed
 
-- Initialized the Git repository and configured the SSH remote.
-- Created the Python environment using uv and configured non-package mode.
-- Installed development dependencies and established the flat `src/` structure.
-- Verified source imports, Ruff linting, formatting, and initial tests.
-- Created and pushed the repository foundation and documentation.
+- Initialized the Git repository, configured the GitHub SSH remote, and created the `uv` Python environment.
+- Established the flat `src/` layout, development tooling, initial tests, README, and project documentation.
+- Confirmed source imports, Ruff checks, and test execution.
 
-### Dataset Feasibility — Completed
+## 2. Dataset Feasibility — Completed
 
-- Downloaded the official NLBSE'23 training and test archives.
-- Audited the official training dataset only in `notebooks/01_dataset_feasibility.ipynb`.
-- Examined schema, class imbalance, missing text, lengths, structured text, duplicates, conflicting labels, and author metadata.
+**Notebook:** `notebooks/01_dataset_feasibility.ipynb`  
+**Source:** NLBSE 2023 Issue Report Classification competition; official training and test archives downloaded. Exploration was restricted to the official training data.
 
-**Key findings:**
-
-| Metric | Value |
+| Measure | Finding |
 |---|---:|
-| Original training rows | 1,275,881 |
+| Original official training rows | 1,275,881 |
 | Bug | 670,951 (52.59%) |
 | Feature | 472,216 (37.01%) |
 | Question | 76,048 (5.96%) |
@@ -54,298 +47,293 @@ Version information reflects earlier verified environment reports; versions have
 | Unique title–body combinations | 1,222,422 |
 | Duplicate text occurrences | 53,459 |
 | Conflicting text groups | 440 |
-| Rows in conflicting groups | 4,146 |
-| Median title length | 44 characters |
-| Median body length | 490 characters |
+| Rows in conflicting text groups | 4,146 |
 | Duplicate ID occurrences | 33,353 |
 | ID label conflicts | 2,059 |
 | ID text conflicts | 1,714 |
+| Median title length | 44 characters |
+| Median body length | 490 characters |
 
-**Decisions:** Preserve raw data; deduplicate by exact title–body text, retaining one representative for consistent-label groups; exclude all rows in conflicting-label text groups; do not deduplicate by `id` alone; retain structured text for later preprocessing ablations; exclude `author_association` from initial text-only models; reserve the official test set.
+**Decision:** Keep original data immutable. Deduplicate using exact title–body text rather than `id` alone; remove whole text groups containing conflicting labels; retain structured content for controlled modeling experiments; initially exclude `author_association` from model inputs.
 
-### Data Quality — Completed and Merged
+## 3. Data Quality — Completed and Merged
 
-**Objective:** Create a reproducible, leakage-aware modeling dataset without modifying the raw source.
+**Implementation:** `src/data/prepare.py`; tests in `tests/test_prepare.py`.
 
-**Implementation:**
-
-- Added `src/data/prepare.py`, a two-pass chunked preparation pipeline.
-- Used SHA-256 title–body hashes and a temporary SQLite index to detect duplicate and conflicting groups across chunks.
-- Normalized missing titles and bodies to empty strings.
-- Removed entire conflicting-label text groups and kept the first row of each consistent-label group.
-- Preserved selected original columns.
+- Two-pass, chunked preparation using SHA-256 title–body hashes and a temporary SQLite index.
+- Normalize missing title/body fields to empty strings.
+- Keep the first representative of each consistent-label exact-text group and remove all rows of conflicting-label groups.
+- Fixed the cross-chunk CSV header bug, including the case where the first chunk retains no rows.
 - Generated `data/processed/issues_clean.csv` and `data/processed/preparation_report.json`.
-- Fixed a cross-chunk CSV header bug so the header is written once, including when the first chunk has no retained rows.
-- Added `tests/test_prepare.py` with three focused tests at the stage's completion.
 
-**Verified results:**
-
-| Metric | Value |
+| Measure | Result |
 |---|---:|
-| Original training rows | 1,275,881 |
-| Prepared training rows | 1,221,982 |
+| Source rows | 1,275,881 |
+| Prepared rows | 1,221,982 |
 | Duplicate rows removed | 49,753 |
-| Conflicting rows removed | 4,146 |
+| Conflicting-label rows removed | 4,146 |
 | Conflicting text groups | 440 |
-| Raw missing titles | 4 |
-| Raw missing bodies | 4,681 |
+| Remaining exact title–body duplicates | 0 |
 | Prepared missing titles | 4 |
 | Prepared missing bodies | 4,639 |
-| Remaining exact title–body duplicates | 0 |
 
-**Prepared class distribution:**
+**Accounting:** `1,221,982 + 49,753 + 4,146 = 1,275,881`.
 
-| Label | Rows |
+| Label | Prepared rows |
 |---|---:|
 | bug | 648,270 |
 | feature | 444,745 |
 | question | 74,474 |
 | documentation | 54,493 |
 
-**Validation:** Re-ran preparation successfully; verified class counts, zero exact duplicates, allowed labels, and row accounting (`1,221,982 + 49,753 + 4,146 = 1,275,881`). Ruff and the stage's unit tests passed.
+Exact-text cleaning does not resolve semantic label noise, near duplicates, or all potential repository-related shortcuts.
 
-**Scope:** Exact-text conflict removal does not guarantee semantic label correctness. Near duplicates, label noise, ID semantics, and repository shortcuts remain topics for later analysis.
+## 4. Evaluation Protocol — Completed
 
-### Evaluation Protocol — Implementation Completed
+**Branch:** `evaluation-protocol`  
+**Implementation:** `src/data/split.py`, `src/models/evaluation.py`, `src/models/dummy_baseline.py` and corresponding tests.
 
-**Branch used:** `evaluation-protocol`
+- Stratified 85%/15% train/validation split with `random_state=42`.
+- Preserve original source rows in split files; validate row accounting, class distributions, reproducibility, and zero exact title–body overlap across splits.
+- Record SHA-256 hashes and JSON reports.
+- Reusable accuracy, Micro/Macro/Weighted F1, per-class precision/recall/F1/support, and ordered confusion matrix.
+- DummyClassifier majority-class reference baseline, trained only on training labels.
 
-**Objectives:** Reproducible train/validation split, split integrity verification, consistent metrics, and a majority-class reference baseline.
-
-**Implementation:**
-
-- Added `src/data/split.py` with stratified 85% training / 15% validation splitting (`random_state=42`).
-- Generated `data/processed/train.csv`, `data/processed/validation.csv`, and `data/processed/split_report.json`.
-- Used chunked CSV writing, preserved source rows, verified class distributions and row counts, and checked exact title–body overlap across splits.
-- Recorded SHA-256 hashes of the source, training, and validation CSV files.
-- Added `src/models/evaluation.py` for accuracy, Micro/Macro/Weighted F1, per-class Precision/Recall/F1/Support, and an ordered confusion matrix.
-- Added `src/models/dummy_baseline.py` using `DummyClassifier(strategy="most_frequent")`, fit on training labels only and evaluated on validation labels.
-- Saved baseline output to `data/processed/dummy_baseline_metrics.json`.
-- Added unit tests in `tests/test_split.py`, `tests/test_evaluation.py`, and `tests/test_dummy_baseline.py`.
-
-**Actual split results:**
-
-| Metric | Value |
+| Measure | Result |
 |---|---:|
 | Prepared source rows | 1,221,982 |
 | Training rows | 1,038,684 |
 | Validation rows | 183,298 |
-| Validation fraction | 0.15 |
-| Random state | 42 |
-| Exact cross-split title–body overlap | 0 |
+| Exact train/validation text overlap | 0 |
 | Source row multiset preserved | Yes |
-| Row counts reconciled | Yes |
 
-**Class distribution:**
+| Label | Train | Validation |
+|---|---:|---:|
+| bug | 551,029 | 97,241 |
+| feature | 378,033 | 66,712 |
+| question | 63,303 | 11,171 |
+| documentation | 46,319 | 8,174 |
 
-| Label | Source | Train | Validation |
-|---|---:|---:|---:|
-| bug | 648,270 | 551,029 | 97,241 |
-| feature | 444,745 | 378,033 | 66,712 |
-| question | 74,474 | 63,303 | 11,171 |
-| documentation | 54,493 | 46,319 | 8,174 |
+**Source and split fingerprints** (`data/processed/split_report.json`):
 
-**SHA-256 fingerprints (from `split_report.json`):**
+- Prepared source: `804e63362d1a8096864066191b42e41d3809ca5ff09050622dc5fa7f98d00ef3`
+- Train CSV: `41d703815435c2018a93bb9021e69083ce49ebe9b699ecb1aff03f0f7500055d`
+- Validation CSV: `7946749613bda611b96cb4871aaa38045195fa980744b1112fa2f9f9bd2f9b23`
 
-- Source: `804e63362d1a8096864066191b42e41d3809ca5ff09050622dc5fa7f98d00ef3`
-- Train: `41d703815435c2018a93bb9021e69083ce49ebe9b699ecb1aff03f0f7500055d`
-- Validation: `7946749613bda611b96cb4871aaa38045195fa980744b1112fa2f9f9bd2f9b23`
-
-**Majority-class baseline (validation set):**
-
-| Metric | Result |
+| Dummy baseline metric | Validation result |
 |---|---:|
-| Accuracy | 0.530508 |
-| Micro F1 (primary) | 0.530508 |
+| Accuracy / Micro F1 | 0.530508 |
 | Macro F1 | 0.173311 |
 | Weighted F1 | 0.367771 |
 
-The dummy model predicted `bug` for every validation sample. Its `bug` recall was 1.0, but F1 for `feature`, `question`, and `documentation` was 0.0. This establishes a reference, not evidence of meaningful issue understanding.
+The dummy model predicts `bug` for every validation issue. It has zero F1 for the other three classes; it is a reference, not a useful deployed classifier.
 
-**Validation status:** The actual split and dummy baseline executed successfully. An earlier full suite passed 34 tests after the confusion-matrix serialization fix. Subsequent development reached 48 passing tests (see current-stage validation). The merge status of `evaluation-protocol` into `main` was not independently confirmed in the latest conversation; verify Git history before marking the merge complete.
+## 5. Classical NLP Baselines — Partially Completed
 
-## Current Stage — Classical NLP Baselines (In Progress)
+**Existing branch:** `classical-baselines`. The completed structured-preprocessing work was implemented on a separate branch and subsequently merged into `main`.
 
-**Working branch:** `classical-baselines` (verify locally)
+### Experimental protocol
 
-**Experiment protocol:**
+- All comparable 200K experiments use the same nested stratified 200,000-row training sample, `random_state=42`, and fixed full validation set of 183,298 rows.
+- TF-IDF: word unigrams, `max_features=50_000`, `min_df=2`, `dtype=float32`.
+- Logistic Regression: `max_iter=1000`, `random_state=42`.
+- Fit the vectorizer on training text only; no validation/test fitting.
+- Primary metric: Micro F1; always report Macro/Weighted F1 and minority-class performance.
+- Report timings as measured, not hardware-independent benchmarks.
 
-- Use the prepared training split for model fitting; keep the full validation split fixed at 183,298 issues.
-- Reserve the official NLBSE'23 test set for final evaluation.
-- Use `random_state=42`, stratified sampling, and nested training subsets for learning-curve comparisons.
-- Primary model-selection metric: Micro F1; also track Macro/Weighted F1, per-class metrics, confusion matrix, and runtime.
-- Fit TF-IDF on training text only. Do not use validation or test text for fitting.
-- Begin with TF-IDF (`ngram_range=(1, 1)`, `max_features=50_000`, `min_df=2`, `dtype=float32`) and Logistic Regression (`max_iter=1000`, `random_state=42`); compare LinearSVC separately.
+### 5.1 Title-only baselines — Completed at sample scale
 
-### 1. Title-Only Classical Baselines — Completed
+**Files:** `src/data/sampling.py`, `src/models/train_classical.py`, `src/models/learning_curve.py`.
 
-**Implementation:**
+Initial independently sampled runs (not the nested learning-curve subsets):
 
-- Added `src/data/sampling.py` for reproducible stratified sampling, including nested samples and optional text columns.
-- Added `src/models/train_classical.py` to evaluate title-only TF-IDF with Logistic Regression or LinearSVC.
-- Added `src/models/learning_curve.py` for a nested Logistic Regression learning curve.
-- Added sampling and model-training unit tests.
-
-**Initial independent-sample experiments:**
-
-| Model | Training rows | Micro F1 | Macro F1 | Weighted F1 |
+| Model | Train rows | Micro F1 | Macro F1 | Weighted F1 |
 |---|---:|---:|---:|---:|
 | Logistic Regression | 50,000 | 0.777864 | 0.595009 | 0.762348 |
 | LinearSVC | 50,000 | 0.766850 | 0.598181 | 0.754801 |
 | Logistic Regression | 100,000 | 0.786015 | 0.607988 | 0.771413 |
 | LinearSVC | 100,000 | 0.779010 | 0.610171 | 0.766616 |
 
-These initial 50K/100K runs were sampled independently and should not be conflated with the nested learning-curve samples.
+Nested Logistic Regression learning curve:
 
-**Nested Logistic Regression learning curve:**
-
-| Training rows | Micro F1 | Macro F1 | Weighted F1 | Fit time |
+| Train rows | Micro F1 | Macro F1 | Weighted F1 | Fit time |
 |---|---:|---:|---:|---:|
 | 50,000 | 0.776817 | 0.592338 | 0.760995 | 3.155 s |
 | 100,000 | 0.785830 | 0.609182 | 0.771420 | 8.634 s |
 | 200,000 | 0.792704 | 0.618379 | 0.778851 | 17.749 s |
 
-**200K title-only per-class F1 and recall:**
+At 200K, per-class F1: bug `0.849904`, documentation `0.543075`, feature `0.785123`, question `0.295414`. Question recall was only `0.192015`.
 
-| Label | F1 | Recall |
-|---|---:|---:|
-| bug | 0.849904 | 0.879310 |
-| documentation | 0.543075 | 0.431490 |
-| feature | 0.785123 | 0.811308 |
-| question | 0.295414 | 0.192015 |
+### 5.2 Body structure EDA — Completed
 
-**Finding:** More training data improved validation performance, but the `question` class remained difficult. The 200K nested sample is the reference for the subsequent title-and-body experiment.
+**Notebook:** `notebooks/02_body_structure_eda.ipynb`  
+**Sample:** 50,000 stratified training issues; official test excluded.
 
-### 2. Body Structure EDA — Completed
+| Label | Median body chars | P95 | P99 | Fenced-code detection | Stack-trace detection |
+|---|---:|---:|---:|---:|---:|
+| bug | 713 | 5,539.6 | 16,825.48 | 32.67% | 5.60% |
+| documentation | 304 | 1,843.6 | 4,213.74 | 11.17% | 0.40% |
+| feature | 312 | 1,797.3 | 4,246.03 | 11.85% | 0.27% |
+| question | 590 | 4,794.8 | 15,259.16 | 26.88% | 3.45% |
 
-**Notebook:** `notebooks/02_body_structure_eda.ipynb`
+Among issues with detected fenced code, median fenced-code share of body characters was approximately 57.1% for bug, 40.3% for documentation, 37.1% for feature, and 53.1% for question. Manual review found exceptions, stack traces, and diagnostic messages inside some code fences. Regex-based detection is heuristic and not a semantic ground truth.
 
-**Scope:** A reproducible stratified sample of 50,000 training issues; no official test data and no modification of processed CSVs.
+A hypothetical 1,000-character truncation would affect 37.55% of bug issues and 31.24% of question issues, versus 13.14% of documentation and 13.68% of feature issues in this sample.
 
-**Sample class distribution:**
+### 5.3 Title + raw full body — Completed at 200K
 
-| Label | Rows |
-|---|---:|
-| bug | 26,525 |
-| feature | 18,198 |
-| question | 3,047 |
-| documentation | 2,230 |
+**Implementation:** `src/models/train_title_body.py`; result: `data/processed/title_body_logreg_200k_metrics.json`.
 
-**Body lengths (characters):**
-
-| Label | Median | P95 | P99 |
+| Metric | Title only | Title + raw body | Change |
 |---|---:|---:|---:|
-| bug | 713 | 5,539.6 | 16,825.48 |
-| documentation | 304 | 1,843.6 | 4,213.74 |
-| feature | 312 | 1,797.3 | 4,246.03 |
-| question | 590 | 4,794.8 | 15,259.16 |
-
-Body lengths are strongly right-skewed, with substantial long tails, especially for bugs and questions.
-
-**Detected text structures (heuristic regex):**
-
-| Label | Fenced code blocks | Stack traces |
-|---|---:|---:|
-| bug | 32.67% | 5.60% |
-| documentation | 11.17% | 0.40% |
-| feature | 11.85% | 0.27% |
-| question | 26.88% | 3.45% |
-
-**Fenced-code character ratios:**
-
-| Label | Mean across all issues | Issues with detected fenced code | Mean among code-containing issues | Median among code-containing issues |
-|---|---:|---:|---:|---:|
-| bug | 18.0% | 8,665 | 55.0% | 57.1% |
-| documentation | 4.8% | 249 | 43.3% | 40.3% |
-| feature | 5.0% | 2,156 | 42.0% | 37.1% |
-| question | 14.4% | 819 | 53.5% | 53.1% |
-
-**Hypothetical 1,000-character body truncation:**
-
-| Label | Issues exceeding limit | Mean fraction of body removed (all issues) |
-|---|---:|---:|
-| bug | 37.55% | 17.94% |
-| documentation | 13.14% | 5.22% |
-| feature | 13.68% | 5.02% |
-| question | 31.24% | 14.80% |
-
-**Manual inspection:** Deliberately selected long, code-heavy bug issues contained logs, stack traces, exception types, and useful error messages within fenced blocks, sometimes beyond the first 1,000 characters. These examples are not representative random samples, but they demonstrate why blanket code-block removal or arbitrary truncation may discard useful information.
-
-**Decision:** Do not assume all fenced blocks are irrelevant source code. Establish a raw full-body reference before testing selective preprocessing or truncation. Character loss alone does not measure semantic information loss; regex detection is incomplete.
-
-### 3. Title + Raw Full Body Baseline — Completed
-
-**Implementation:**
-
-- Added `src/models/train_title_body.py` to combine title and full, untruncated body and evaluate TF-IDF + Logistic Regression.
-- Added `tests/test_train_title_body.py` for text combination and missing-value handling.
-- Used the same 200,000-row stratified training sample as the largest nested title-only learning-curve sample, with the same random seed and validation split.
-- No custom cleaning, code-block replacement, or body truncation was applied. The TF-IDF vectorizer still performs its configured/default text tokenization and normalization.
-- Saved `data/processed/title_body_logreg_200k_metrics.json`.
-
-**Verified run:** `uv run python -m src.models.train_title_body`
-
-| Metric | Title only, 200K | Title + raw body, 200K | Change |
-|---|---:|---:|---:|
-| Micro F1 | 0.792704 | 0.832186 | +3.95 percentage points |
-| Macro F1 | 0.618379 | 0.676879 | +5.85 percentage points |
-| Weighted F1 | 0.778851 | 0.822626 | +4.38 percentage points |
+| Micro F1 | 0.792704 | 0.832186 | +0.039482 |
+| Macro F1 | 0.618379 | 0.676879 | +0.058500 |
+| Weighted F1 | 0.778851 | 0.822626 | +0.043775 |
 | Training time | 17.749 s | 85.633 s | ~4.82× |
 
-**Raw-body per-class results:**
+Raw-body per-class F1: bug `0.884124`, documentation `0.552732`, feature `0.830018`, question `0.440641`. Question recall improved from `0.192015` (title only) to `0.328440` (raw body), but remained low. Full-validation prediction time: `26.965 s`.
 
-| Label | Precision | Recall | F1 | Support |
+### 5.4 Body truncation ablation — Completed at 200K
+
+The established raw full-body run was compared with character-limited body variants using the same sampling, validation split, TF-IDF configuration, and classifier. The following Micro F1 results were recorded:
+
+| Body representation | Micro F1 |
+|---|---:|
+| 1,000 characters | 0.831853 |
+| 2,000 characters | 0.832513 |
+| 4,000 characters | 0.832633 |
+| Raw full body | 0.832186 |
+
+**Interpretation:** Truncation is not monotonically harmful or beneficial. The 2K and 4K runs slightly exceeded the raw full-body Micro F1, while 1K was slightly below it. These are validation comparisons, not statistically established improvements. Do not select a truncation limit solely by character count or assume it preserves error context.
+
+### 5.5 Structured preprocessing — Completed and merged
+
+**Branch:** `structured-preprocessing` (merged into `main`, as reported).  
+**Files:** `src/preprocessing/structured.py`, `src/models/structured_ablation_experiment.py`, `src/preprocessing/analyze_size.py`, `notebooks/03_structured_text_audit.ipynb`, and focused tests.
+
+Transformations include HTML comment removal, Markdown normalization, URL/path normalization, empty template placeholder removal, optional repeated-line compression, fenced-code handling, and whitespace normalization. A malformed URL parsing regression was fixed by preserving the original URL when `urlsplit` raises `ValueError`.
+
+The controlled ablations use the same 200K training subset and 183,298-row validation set. Preprocessing applies to the **body only**, leaving the original title intact.
+
+| ID | Representation | Micro F1 | Macro F1 | Weighted F1 |
+|---|---|---:|---:|---:|
+| E0 | Raw title + full body | 0.832186 | 0.676879 | 0.822626 |
+| E1 | Minimal preprocessing | 0.831722 | 0.675462 | Not recorded here |
+| E2 | Full structured; fenced code → `CODE` | **0.833441** | 0.678902 | **0.824319** |
+| E3 | Structured; fenced code retained | 0.830604 | 0.673184 | 0.820802 |
+| E4 | Structured; no repeated-line compression | 0.833304 | 0.678782 | 0.824166 |
+| E5 | E4 + selective error signals from fenced code | 0.833266 | **0.678985** | 0.824175 |
+
+E5 extracts bounded diagnostic signals (e.g., exception names and selected HTTP/CUDA errors) rather than keeping all code. It improved Macro F1 marginally relative to E4 but did not improve the primary Micro F1. E2 had the highest observed Micro F1; **E4 was selected as the simpler practical classical preprocessing configuration** because the difference was very small and repeated-line compression added little size benefit. This is an engineering trade-off, not a claim that E4 is statistically superior.
+
+Selected E4 configuration:
+
+```python
+StructuredPreprocessingConfig(
+    remove_html_comments=True,
+    normalize_markdown=True,
+    normalize_urls_paths=True,
+    remove_template_placeholders=True,
+    compress_repeated_blocks=False,
+    replace_fenced_code=True,
+    normalize_whitespace=True,
+    selective_code_compression=False,
+)
+```
+
+**Size analysis** (`src/preprocessing/analyze_size.py`): same 200K training sample, measuring combined title + body character counts.
+
+| Version | Total characters | Reduction vs raw | Mean chars | P99 chars |
 |---|---:|---:|---:|---:|
-| bug | 0.854399 | 0.915992 | 0.884124 | 97,241 |
-| documentation | 0.738144 | 0.441767 | 0.552732 | 8,174 |
-| feature | 0.818167 | 0.842217 | 0.830018 | 66,712 |
-| question | 0.669281 | 0.328440 | 0.440641 | 11,171 |
+| Raw | 251,265,035 | 0% | 1,256.33 | 12,439 |
+| E2 | 129,450,078 | 48.4807% | 647.25 | 3,828.02 |
+| E4 | 129,537,189 | 48.4460% | 647.69 | 3,836.01 |
+| E5 | 130,897,738 | 47.9045% | 654.49 | 3,839.02 |
 
-**Key comparisons:**
+E2 removed only 87,111 more characters than E4; E5 retained 1,360,549 more characters than E4. Character reduction is **not** equivalent to token reduction, RAM reduction, or preservation of semantic information. Very long outliers remain (maximum processed combined text: 208,769 characters).
 
-- Question F1 improved from 0.295414 to 0.440641 (+14.52 percentage points).
-- Question recall improved from 19.20% to 32.84% (+13.64 percentage points), but remains low.
-- Documentation recall improved only modestly, from 43.15% to 44.18%.
-- The raw-body model predicted 3,669 of 11,171 validation questions correctly; 4,628 were predicted as `bug` and 2,757 as `feature`.
-- Prediction time for the full 183,298-row validation set was 26.965 seconds, including vectorization and classification.
+### 5.6 Materialized `structured_v1` dataset — Completed
 
-**Finding:** Adding raw body text substantially improved both overall and minority-class F1, at a measurable computational cost. This is the untruncated reference against which subsequent truncation and cleaning experiments will be compared. Results are validation scores, not official-test benchmark results.
+**Implementation:** `src/preprocessing/build_dataset.py`; tests: `tests/test_build_dataset.py`.  
+**Dependency:** `pyarrow==26.0.1`.
 
-### Validation and Working-Tree Status
+- Chunked CSV reads (`10,000` rows/chunk), body-only E4 transformation, and incremental Zstandard-compressed Parquet writes.
+- Preserve original `title` and `labels` columns; save processed `body` separately.
+- Validate row counts and schema; use temporary files to avoid exposing incomplete Parquet files during a split build.
+- Record configuration, source/output hashes, character counts, output sizes, and elapsed times in `manifest.json`.
+- Reject empty labels, preserve empty bodies, avoid overwriting existing versioned outputs, and allow temporary test paths outside the repository.
 
-- Most recently reported test run: **48 passed in 3.53 seconds**.
-- That same run initially reported Ruff `E402` in the body-EDA notebook because a `src` import followed a `sys.path` modification in one cell; the recommended fix was to split path setup and imports into separate cells.
-- The notebook lint fix was not followed by a separately reported clean full-suite run in the supplied conversation. Re-run all checks before committing.
-- The title + raw-body experiment ran successfully; no subsequent Git commit or merge was confirmed here.
+**Local generated artifacts (not tracked by Git):**
 
-## Next Steps — Controlled Truncation Ablation
+```text
+data/processed/structured_v1/
+├── train.parquet
+├── validation.parquet
+└── manifest.json
+```
 
-1. Confirm the working branch and run quality checks.
-2. Preserve the completed title-only and raw full-body experiment scripts/results.
-3. Compare fixed body-length limits (initially 1,000 and 2,000 characters) against the raw full-body reference, keeping the same 200K sampled rows, validation set, TF-IDF configuration, and classifier.
-4. Record Micro/Macro/Weighted F1, per-class recall/F1, training and prediction time, and input-length settings.
-5. If useful, extend to 500 and 4,000 characters; do not assume that the longest input is necessarily best.
-6. Evaluate structured preprocessing in a separate ablation, distinguishing source code from logs/error messages where practical. Do not silently mix cleaning and truncation changes.
-7. Document outcomes, run tests, and commit the stage work when verified.
+| Measure | Train | Validation |
+|---|---:|---:|
+| Rows | 1,038,684 | 183,298 |
+| Original body characters | 1,265,833,189 | 226,574,571 |
+| Processed body characters | 626,208,289 | 109,328,175 |
+| Body character reduction | 50.53% | 51.7474% |
+| Parquet file bytes | 283,084,647 | 49,808,518 |
+| Build time | 94.940 s | 16.457 s |
 
-## Upcoming Stages
+**Generated-file SHA-256:**
 
-- Complete Classical NLP Baselines
-- Neural NLP
-- Transformer Fine-Tuning
-- Final Evaluation
-- API & Docker
-- Portfolio Release
+- Train Parquet: `3a1514f79aab4850e0d1c61885c8ba7da0835b92c03ced0064d5af9a46bfc958`
+- Validation Parquet: `bad8a7b29c6719ee97cadf98a4b87220801485f1d759a1e9fa671a751b58ea1c`
 
-## Notes and Open Risks
+The source CSV hashes in the generated manifest match the evaluation-protocol split fingerprints above. A separate post-build integrity check reported:
 
-- Published benchmark results are not project results.
-- The official test set remains reserved for final evaluation; audit possible exact overlap without silently modifying the benchmark.
-- Near duplicates, semantic label noise, long bodies, Markdown/code/HTML, and repository-specific shortcuts remain to be investigated.
-- Learned preprocessing and vectorizers must be fit on training data only.
-- Keep the original title-only and raw-body baselines reproducible when introducing new experiments.
-- Large datasets, split files, and generated experiment artifacts should remain outside Git; record reproducible scripts and key results in documentation.
-- For code quality, run auto-fix/format before checks and tests:
+```text
+train: SHA-256, row count, schema OK
+validation: SHA-256, row count, schema OK
+```
+
+These checks verify artifact integrity and schema/row counts, not semantic equivalence or all possible leakage modes. The official test set was not preprocessed or used for tuning.
+
+### Git closure of structured preprocessing
+
+On `structured-preprocessing`, the following commits were created:
+
+- `1832bb5` — `feat: add structured preprocessing and ablation experiments`
+- `5f8f376` — `feat: build versioned structured parquet datasets`
+
+The user confirmed the branch was merged into `main` and that the test suite passed. The Parquet files were confirmed ignored by Git. Exact post-merge HEAD and working-tree status should be checked before the next stage.
+
+## 6. Next Steps — Full Classical Baseline and Stage Closure
+
+1. Verify the current branch, clean working tree, and latest `main`; bring the existing `classical-baselines` branch up to date safely before modifying it. Do not discard divergent work.
+2. Commit these updated documentation files on an appropriate branch and merge them as part of stage closure.
+3. Review the current classical training scripts and memory budget before loading full train/validation data; avoid duplicating existing code or fitting TF-IDF on validation text.
+4. Run a reproducible full-training classical baseline on `structured_v1` (1,038,684 training issues; 183,298 validation issues), recording Micro/Macro/Weighted F1, per-class metrics, runtime, and resource usage where measurable.
+5. Decide whether a full-scale LinearSVC comparison is justified based on the existing sampled results and resource budget; preserve the 200K experiments as controlled references.
+6. Document the final classical model-selection decision, preprocessing provenance, limitations, and commands. Only then begin the PyTorch neural baseline.
+
+## 7. Upcoming Stages
+
+- Neural NLP (`neural-baseline`): TextCNN or BiLSTM in PyTorch, with justified tokenization and sequence-length choices.
+- Transformer fine-tuning (`transformer-finetuning`): DistilBERT; optional RoBERTa if compute permits.
+- Final evaluation (`final-evaluation`): official test set, error analysis, latency/model size, model card.
+- API and Docker (`api-serving`): tested FastAPI inference and packaging.
+- Portfolio release (`portfolio-release`): reproducible documentation, CI, architecture/pipeline diagrams (separate from README when appropriate), polished project narrative.
+- Optional retrieval/cloud work only if it materially improves the project.
+
+## Open Risks and Interpretation Rules
+
+- Validation metrics are not official competition test results. Never tune on the official test set.
+- The selected E4 cleaning pipeline is a **classical TF-IDF preprocessing choice**; neural/transformer pipelines must evaluate their own tokenization and code/log preservation requirements.
+- Code-block replacement may remove useful error context; E5 did not clearly resolve that trade-off in classical validation.
+- Large body outliers remain, and character counts do not directly predict subword token counts.
+- Exact-text deduplication and cross-split checks do not eliminate near-duplicate leakage, repository shortcuts, or noisy labels.
+- Minority-class recall, especially for `question` and `documentation`, remains a priority.
+- Versioned generated Parquet and JSON artifacts are local and Git-ignored. Reproduction depends on the tracked builder/configuration and access to the original prepared split files; preserve key numeric results in tracked documentation.
+- Split-level atomic output does not imply a transaction across both splits; if a build is interrupted between splits, inspect artifacts before rerunning.
+
+## Quality Commands
 
 ```bash
 uv run ruff check --fix .
@@ -354,3 +342,5 @@ uv run ruff check .
 uv run ruff format --check .
 uv run pytest -q
 ```
+
+Verify Git state with `git branch --show-current`, `git status --short`, and `git log --oneline -5` before creating the next commit.
