@@ -344,3 +344,25 @@ uv run pytest -q
 ```
 
 Verify Git state with `git branch --show-current`, `git status --short`, and `git log --oneline -5` before creating the next commit.
+
+
+## Full-scale classical baselines — November 2026
+
+Dataset: structured_v1 (E4, body-only preprocessing).
+Training: 1,038,684 issues. Validation: 183,298 issues.
+Features: title + body, TF-IDF unigrams, max_features=50,000.
+
+| Model | Micro F1 | Macro F1 | Weighted F1 | Wall time | Peak RAM |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Logistic Regression | 0.842650 | 0.706409 | 0.835740 | 4m 04s | 3.47 GiB |
+| LinearSVC | 0.839202 | 0.697714 | 0.831276 | 6m 15s | 3.56 GiB |
+
+Selected classical baseline: Logistic Regression.
+Compared with the 200K E4 experiment, Micro F1 improved from
+0.833304 to 0.842650 and Macro F1 from 0.678782 to 0.706409.
+
+Remaining weaknesses: documentation recall 0.4956 and
+question recall 0.3928 for Logistic Regression.
+
+The official test split remains untouched.
+Next milestone: PyTorch neural baseline and error analysis.

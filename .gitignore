@@ -35,3 +35,6 @@ mlruns/
 .vscode/
 .idea/
 .DS_Store
+
+# Local training logs
+full_*_training.log
