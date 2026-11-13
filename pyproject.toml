@@ -8,6 +8,9 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+    "accelerate>=1.15.0",
+    "datasets>=5.2.0",
+    "duckdb>=2.0.0",
     "nvidia-cublas-cu12==12.6.4.1",
     "nvidia-cuda-cupti-cu12==12.6.80",
     "nvidia-cuda-nvrtc-cu12==12.6.77",
@@ -23,8 +26,10 @@ dependencies = [
     "nvidia-nvtx-cu12==12.6.77",
     "pandas>=3.1.0",
     "pyarrow>=26.0.1",
+    "safetensors>=0.8.0",
     "scikit-learn>=1.9.1",
     "torch==2.6.0",
+    "transformers>=5.22.2",
 ]
 
 [build-system]
