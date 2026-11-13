@@ -38,3 +38,7 @@ mlruns/
 
 # Local training logs
 full_*_training.log
+
+# Temporary Kaggle transfer artifacts
+/kaggle_upload/
+/neural_training.log

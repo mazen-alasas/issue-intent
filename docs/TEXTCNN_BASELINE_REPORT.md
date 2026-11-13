@@ -20,7 +20,7 @@
 
 ## Best Checkpoint
 
-Selected using validation Macro F1.
+Selected using validation Macro F1. Training stopped after four epochs.
 
 | Metric | Result |
 |---|---:|
@@ -28,8 +28,6 @@ Selected using validation Macro F1.
 | Micro F1 | 0.85265 |
 | Macro F1 | 0.72473 |
 | Weighted F1 | 0.84675 |
-
-Training stopped after four epochs.
 
 ## Classical Baseline Comparison
 
@@ -49,22 +47,18 @@ Training stopped after four epochs.
 
 ## Error Analysis
 
-The independent evaluation produced 27,007
-misclassified examples across 183,298 validation rows.
+The independent evaluation produced 27,007 misclassified examples across 183,298 validation rows.
 
 Largest confusion pairs:
 
-- feature -> bug: 8,254
-- bug -> feature: 5,271
-- question -> bug: 4,069
-- documentation -> feature: 2,445
-- question -> feature: 1,905
-- documentation -> bug: 1,407
+- feature → bug: 8,254
+- bug → feature: 5,271
+- question → bug: 4,069
+- documentation → feature: 2,445
+- question → feature: 1,905
+- documentation → bug: 1,407
 
-Manual inspection of sampled errors suggests semantic
-overlap, possible label ambiguity, and sensitivity to
-surface-level wording. These are hypotheses rather than
-established causal explanations.
+Manual inspection of sampled errors suggests semantic overlap, possible label ambiguity, and sensitivity to surface-level wording. These are hypotheses rather than established causal explanations.
 
 ## Truncation Analysis
 
@@ -78,26 +72,14 @@ Actual tokenization and encoding were used.
 | question | 13.40% |
 | Overall | 10.57% |
 
-Title truncation overall: 0.37%.
-Body truncation overall: 10.31%.
+Title truncation overall: 0.37%. Body truncation overall: 10.31%. Truncation rate among 100 sampled errors: 8.00%.
 
-Truncation rate among 100 sampled errors: 8.00%.
-
-The sampled comparison does not establish whether
-truncation causes classification errors.
+The sampled comparison does not establish whether truncation causes classification errors.
 
 ## Conclusions
 
-TextCNN improves validation Micro F1 and Macro F1
-relative to the classical Logistic Regression baseline.
-
-Minority-class recall remains a major limitation,
-particularly for question and documentation.
-
-No additional TextCNN hyperparameter tuning is planned
-at this stage.
+TextCNN improves validation Micro F1 and Macro F1 relative to the classical Logistic Regression baseline. Minority-class recall remains a major limitation, particularly for question and documentation. No additional TextCNN hyperparameter tuning is planned at this stage.
 
 ## Evaluation Policy
 
-All results in this report are from the validation split.
-The official test set remains held out for final evaluation.
+All results in this report are from the validation split. The official test set was held out during TextCNN development and was subsequently evaluated only for the selected DistilBERT model.
