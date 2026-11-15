@@ -565,7 +565,7 @@ The final-evaluation documentation, including `docs/FINAL_EVALUATION_REPORT.md`,
 
 ## 8. API Serving — Inference Engine Completed and Committed
 
-**Branch:** `api-serving`  
+**Branch:** `api-serving`
 **Commit:** `69fda88` — `feat: add reusable DistilBERT inference engine`
 
 **Files:** `src/api/inference.py`; `tests/test_inference.py`.
