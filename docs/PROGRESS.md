@@ -6,19 +6,25 @@
 
 **Local path:** `/home/mazen/issue-intent`  
 
-**Last updated:** 2026-11-13  
+**Last updated:** 2026-11-15
 
-**Current stage:** Transformer fine-tuning implementation committed; documentation closure in progress.
+**Current stage:** API serving — inference and FastAPI endpoints committed; benchmarking implemented and measured; benchmark quality gate/commit pending confirmation.
 
-**Last completed branch:** `neural-baseline` (merged into `main`).
+**Last completed branch:** `final-evaluation` (merged into `main`; baseline commit `09672bf`).
 
-**Current branch:** `transformer-finetuning` (commit `6986b78`); next: `final-evaluation` after stage closure.
+**Current branch:** `api-serving` (latest confirmed commit `752dc87`); next: close benchmarking, then Docker and CI.
 
 ## Executive Status
-Repository foundation, data-quality preparation, evaluation protocol, structured preprocessing, full-scale classical baselines, TextCNN, and DistilBERT fine-tuning have been completed. The selected DistilBERT checkpoint was chosen using validation Macro F1 at epoch 3.
-Official-test inference was completed on Kaggle. The preserved final evaluation artifacts passed a local integrity audit and row-by-row alignment against the saved processed official test dataset (142,320 rows). Final evaluation documentation and branch closure are in progress; API serving, Docker, CI, and portfolio release remain future stages.
-Latest quality gate: Run the current full test suite before the documentation commit; older test counts in the historical sections are not the current verified count.
-Environment and Conventions**
+
+Repository foundation, data preparation and quality, evaluation protocol, structured preprocessing, full-scale classical baselines, TextCNN, DistilBERT fine-tuning, and official-test final evaluation are complete. The `final-evaluation` branch was merged into `main`.
+
+The selected DistilBERT checkpoint (epoch 3, chosen by validation Macro F1) achieved **0.886558 Micro F1** and **0.791175 Macro F1** on the 142,320-row official test set. Saved evaluation outputs passed local integrity and source-alignment audits; those audits do not cryptographically prove the provenance of the original Kaggle inference weights.
+
+On `api-serving`, the reusable CPU-first inference engine and FastAPI `/health` and `/predict` endpoints were implemented, tested, exercised against the real local checkpoint, and committed. The most recently reported full automated gate was **310 passing tests**, before the new benchmark tests were added. An HTTP benchmark script and tests were subsequently drafted, and a real local benchmark run produced the results recorded in Section 10; the new test-suite result and benchmark commit have **not yet been confirmed**.
+
+**Next:** verify the benchmark files and complete the quality gate, ignore generated benchmark JSON, commit the benchmark/documentation changes, then proceed to Docker, CI, and portfolio release.
+
+## Environment and Conventions
 
 - WSL2 Ubuntu; Python 3.11.16 managed by `uv` (earlier reported `uv 0.12.19`).
 
@@ -90,7 +96,7 @@ Environment and Conventions**
 | Duplicate rows removed | 49,753
 | Conflicting-label rows removed| 4,146 |
 | Conflicting text groups | 440
-| Remaining exact title–body dplicates | 0 |
+| Remaining exact title–body duplicates | 0 |
 | Prepared missing titles | 4 |
 | Prepared missing bodies | 4,639 |
 
@@ -219,7 +225,7 @@ A hypothetical 1,000-character truncation would affect 37.55% of bug issues and 
 | Micro F1 | 0.792704 | 0.832186 | +0.039482 |
 | Macro F1 | 0.618379 | 0.676879 | +0.058500 |
 | Weighted F1 | 0.778851 | 0.822626 | +0.043775 |
-| Training time | 17.749 s | 85.633 s | \~4.82× |
+| Training time | 17.749 s | 85.633 s | \\~4.82× |
 
 Raw-body per-class F1: bug `0.884124`, documentation `0.552732`, feature `0.830018`, question `0.440641`. Question recall improved from `0.192015` (title only) to `0.328440` (raw body), but remained low. Full-validation prediction time: `26.965 s`.
 
@@ -303,9 +309,9 @@ E2 removed only 87,111 more characters than E4; E5 retained 1,360,549 more chara
 
 ```text
 data/processed/structured_v1/
-    ├── train.parquet
-    ├── validation.parquet
-    └── manifest.json
+    ├── train.parquet
+    ├── validation.parquet
+    └── manifest.json
 ```
 
 | Measure | Train | Validation |
@@ -425,15 +431,20 @@ The official test split was held out during this classical stage. Subsequent Tex
 
 See [`TEXTCNN_BASELINE_REPORT.md`](TEXTCNN_BASELINE_REPORT.md) for full validation metrics and error analysis. Best checkpoint: epoch 2, selected by validation Macro F1; Micro F1 `0.85265`, Macro F1 `0.72473`, Weighted F1 `0.84675`. Training stopped after four epochs.
 
-## DistilBERT Fine-Tuning — Training Completed; Documentation Closure Pending
+## DistilBERT Fine-Tuning — Completed (Historical Record)
 
-**Branch:** `transformer-finetuning`; implementation commit `6986b78`.
+**Historical branch:** `transformer-finetuning`; implementation commit `6986b78`.
 
 - Training: 1,038,684 issues; validation: 183,298 issues; structured E4 body-only preprocessing.
+
 - Model: `distilbert/distilbert-base-uncased`; `[CLS] title [SEP] body [SEP]`.
+
 - Token limit: 256; title budget: 48; body head/tail truncation: 75%/25%.
+
 - Batch size: 8; gradient accumulation: 4; effective batch size: 32; learning rate: `2e-5`; weight decay: `0.01`; warmup ratio: `0.1`; seed: 42.
+
 - Training on Kaggle CUDA; 3 epochs. Final recorded run resumed a prior checkpoint.
+
 - Best checkpoint: epoch 3, selected using **validation Macro F1**, not the project's overall primary reporting metric (Micro F1).
 
 | Epoch | Train loss | Validation Micro F1 | Validation Macro F1 |
@@ -444,16 +455,20 @@ See [`TEXTCNN_BASELINE_REPORT.md`](TEXTCNN_BASELINE_REPORT.md) for full validati
 
 See [`TRANSFORMER_EXPERIMENT.md`](TRANSFORMER_EXPERIMENT.md) for detailed training provenance, model selection, and limitations.
 
-## Final Evaluation — Completed (Documentation Closure In Progress)
+## Final Evaluation — Completed and Merged
 
-**Working branch:** `final-evaluation` (verify locally before committing).
+**Completed branch:** `final-evaluation`, merged into `main` (confirmed base commit `09672bf`).
 
 ### Official Test Preparation and Evaluation
 
 - The official test was processed using structured E4 preprocessing applied to the **body only**, with repeated-block compression disabled.
+
 - **Input configuration:** Maximum length of 256 tokens, title budget of 48 tokens, body head/tail allocation of 75%/25%, evaluation batch size of 16, and random seed of 42.
+
 - **Checkpoint selection:** The selected DistilBERT checkpoint came from epoch 3, chosen using validation Macro F1.
+
 - **Inference environment:** The original full official-test inference was performed on Kaggle. The preserved results were audited locally without rerunning inference or retraining.
+
 - **Label metadata:** The preserved checkpoint's `config.json` explicitly maps class IDs to `bug`, `documentation`, `feature`, and `question`, in that order. This verifies the declared label mapping but does not independently establish the provenance of the weights used during the Kaggle evaluation.
 
 ### Official Test Results
@@ -489,16 +504,25 @@ The final evaluation stage includes the following scripts and corresponding test
 | Artifact integrity audit | `src/models/audit_final_evaluation.py` | `tests/test_audit_final_evaluation.py` |
 
 **Evaluation hardening:**
+
 - Explicit checkpoint label validation.
+
 - Temporary-directory publication to avoid exposing incomplete evaluation results.
+
 - Protection against accidentally overwriting existing evaluation outputs.
 
 **Audit coverage:**
+
 - Prediction row order and row counts.
+
 - Valid class labels and probability distributions.
+
 - Argmax, confidence, and correctness consistency.
+
 - Independently recomputed evaluation metrics.
+
 - Confusion matrix and classification report consistency.
+
 - Row-by-row source ID and true-label alignment.
 
 ### Preserved Evaluation Artifacts
@@ -506,8 +530,11 @@ The final evaluation stage includes the following scripts and corresponding test
 The final evaluation produced:
 
 - `test_predictions.parquet`
+
 - `test_metrics.json`
+
 - `test_classification_report.csv`
+
 - `test_confusion_matrix.csv`
 
 Model weights, datasets, and generated evaluation artifacts are preserved outside the Git repository.
@@ -532,10 +559,155 @@ The audit confirms internal consistency and alignment with the saved processed o
 | `docs/MODEL_CARD.md` | Intended use, training configuration, checkpoint metadata, evaluation, and deployment considerations |
 | `README.md` | Public project overview, benchmark results, and links to detailed documentation |
 
-### Next Steps
+### Final Evaluation Stage Closure
 
-1. Review the updated documentation and run the full quality checks.
-2. Commit the documentation changes on `final-evaluation` after verifying the branch and staged diff.
-3. Review merge readiness and merge into `main` after confirming the branch history and tests.
-4. Begin `api-serving` with tested FastAPI inference.
-5. Continue with Docker, CI, and the final portfolio release.
+The final-evaluation documentation, including `docs/FINAL_EVALUATION_REPORT.md`, `docs/MODEL_CARD.md`, and `README.md`, was completed and merged into `main`. The API-serving branch was created from that completed stage. The latest confirmed `main` commit when API serving began was `09672bf`.
+
+## 8. API Serving — Inference Engine Completed and Committed
+
+**Branch:** `api-serving`  
+**Commit:** `69fda88` — `feat: add reusable DistilBERT inference engine`
+
+**Files:** `src/api/inference.py`; `tests/test_inference.py`.
+
+- Reusable `IssueClassifier` loads the local DistilBERT tokenizer and sequence-classification checkpoint once, uses `local_files_only=True`, validates the expected label mapping, and switches the model to evaluation mode.
+- CPU is the default inference device. The checkpoint is stored outside the Git repository, at `~/issue-intent-artifacts/models/distilbert/best/` in the local environment.
+- Applies the selected E4 structured preprocessing **to the body only**, using `EXPERIMENTS["E4"]`, with repeated-block compression disabled.
+- Reuses `encode_issue` for `[CLS] title [SEP] body [SEP]`, maximum 256 tokens, title budget 48, and 75%/25% body head/tail allocation.
+- Runs under `torch.inference_mode()`, applies softmax, validates output shape and finite logits, and returns label, confidence, and class probabilities.
+- Rejects an issue where both title and body are blank.
+
+**Real local CPU checkpoint smoke test:**
+
+```json
+{
+  "label": "bug",
+  "confidence": 0.967095673084259,
+  "probabilities": {
+    "bug": 0.967095673084259,
+    "documentation": 0.0010205748258158565,
+    "feature": 0.0060602580197155476,
+    "question": 0.025823505595326424
+  }
+}
+```
+
+This is one functional smoke test, not a measure of model accuracy or probability calibration.
+
+## 9. FastAPI Prediction Service — Completed and Committed
+
+**Commit:** `752dc87` — `feat: add FastAPI prediction service and request validation`
+
+**Files:** `src/api/main.py`, `src/api/schemas.py`, `tests/test_api.py`, `tests/test_api_schemas.py`; dependency changes in `pyproject.toml` and `uv.lock`.
+
+- Uses FastAPI lifespan to load one classifier instance at application startup and clear the reference on shutdown.
+- `GET /health` reports healthy when the model is loaded and returns 503 when it is unavailable.
+- `POST /predict` accepts a validated title/body request and returns label, confidence, and per-class probabilities.
+- Pydantic input constraints: title up to 500 characters; optional body up to 20,000 characters; at least one non-whitespace field; unexpected fields forbidden.
+- Tests cover schema validation, endpoint behavior, lifespan, unavailable-model behavior, and OpenAPI.
+- Most recently reported gate before benchmark tests: **310 tests passed**, Ruff checks passed.
+- Real Uvicorn run on `127.0.0.1:8000`: `GET /health` returned 200, `POST /predict` returned 200 with the real checkpoint, and graceful shutdown completed. `GET /` returned 404 as expected because no root endpoint is defined.
+- The working tree was confirmed clean immediately after commit `752dc87`.
+
+**Local run:**
+
+```bash
+uv run uvicorn src.api.main:app --host 127.0.0.1 --port 8000
+```
+
+**Example HTTP request:**
+
+```bash
+curl -sS -X POST http://127.0.0.1:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Application crashes on startup",
+    "body": "After updating the application, it crashes immediately with RuntimeError when I try to launch it."
+  }'
+```
+
+## 10. API Performance Benchmark — Implemented and Measured; Closure Pending
+
+**Proposed files:** `scripts/benchmark_api.py`, `scripts/__init__.py`, and `tests/test_benchmark_api.py`.
+
+The user reported successfully executing the benchmark and saving `artifacts/benchmarks/api_baseline.json`. The benchmark performs sequential HTTP requests with short, medium, and long synthetic inputs and bounded concurrency scenarios. It measures end-to-end local HTTP latency, including preprocessing, tokenization, model inference, and response overhead. The first request in each scenario is **not** an independent measurement of model startup or a guaranteed cold inference.
+
+**Environment:** Local WSL2, CPU inference, FastAPI/Uvicorn, one active serving process. Measurements recorded on 2026-11-15 at `11:46:38 UTC`.
+
+### 10.1 Sequential HTTP latency
+
+20 warm requests per payload, plus one initial request per payload.
+
+| Input | Body characters | First request | Warm mean | Warm P50 | Warm P95 | Warm P99 |
+|---|---:|---:|---:|---:|---:|---:|
+| Short | 57 | 83.62 ms | 23.52 ms | 23.05 ms | 26.88 ms | 32.63 ms |
+| Medium | 2,580 | 120.77 ms | 106.79 ms | 112.42 ms | 118.28 ms | 118.69 ms |
+| Long | 12,900 | 119.18 ms | 104.72 ms | 110.87 ms | 119.45 ms | 125.74 ms |
+
+The similar medium and long latencies are consistent with the model's 256-token input limit, but this benchmark does not isolate preprocessing or tokenization costs and does not establish causality. The input text is repeated synthetic material, not a representative workload.
+
+### 10.2 Concurrent HTTP requests — Short payload
+
+20 total requests per concurrency level.
+
+| Concurrency | Requests | Elapsed time | Throughput | Mean latency | P50 | P95 | P99 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 20 | 0.352 s | 56.86 req/s | 17.53 ms | 16.74 ms | 20.65 ms | 20.70 ms |
+| 2 | 20 | 0.305 s | 65.59 req/s | 30.36 ms | 29.76 ms | 36.34 ms | 36.75 ms |
+| 4 | 20 | 0.288 s | 69.39 req/s | 57.09 ms | 56.72 ms | 61.22 ms | 62.30 ms |
+
+Higher concurrency increased throughput by approximately 22% from level 1 to level 4, while mean per-request latency increased by approximately 3.26 times. These short tests do not establish sustained throughput capacity or production SLAs.
+
+### 10.3 Memory observation
+
+- Active Uvicorn Python process: PID `14147` during observation, RSS `883,300 KiB` (approximately **863 MiB**).
+- WSL2 memory snapshot: total `9.7 GiB`, available `5.2 GiB`, swap total `4.0 GiB`, swap used `0 B`.
+- The measured RSS includes Python/runtime memory and is **not** the size of model weights alone.
+- A separate old Uvicorn parent process and zombie child were observed; the active server on port 8000 was PID `14147`. This is an operational process-management observation, not evidence of multiple active listening servers.
+
+### 10.4 Benchmark limitations and closure checklist
+
+- Results are local, CPU-only, short-duration measurements with 20 samples per scenario.
+- No independent model-startup-time benchmark, sustained load test, or production deployment measurement has been completed.
+- P95/P99 from 20 observations are descriptive and unstable; avoid interpreting them as robust service-level guarantees.
+- The benchmark tests were drafted, but their **full quality-gate result has not been reported**. Do not count them as passing yet.
+- `scripts/__init__.py` was recommended for explicit package organization; its creation has not been independently confirmed.
+- Confirm `artifacts/benchmarks/api_baseline.json` is ignored by Git. If needed, add `/artifacts/benchmarks/` to `.gitignore`.
+- After the quality gate, review the staged diff and commit the benchmark and this documentation. No benchmark commit hash has been reported yet.
+
+**Reproduction command (with the API already running):**
+
+```bash
+uv run python scripts/benchmark_api.py \
+  --warm-requests 20 \
+  --concurrent-requests 20 \
+  --concurrency 1 2 4 \
+  --output artifacts/benchmarks/api_baseline.json
+```
+
+## 11. Next Steps — Docker, CI, and Portfolio Release
+
+1. Confirm `scripts/__init__.py`, the benchmark unit tests, and the ignored output path; run the full quality gate.
+2. Commit the reproducible benchmark and updated progress documentation on `api-serving` after successful checks.
+3. Add a Dockerfile and `.dockerignore`; keep the local checkpoint outside the image and use a runtime volume mount. Validate `/health` and `/predict` inside the container.
+4. Add CI for lint, formatting, and tests that do not require downloading the large private checkpoint.
+5. Update README and serving/deployment documentation with verified commands, limitations, and reproducible instructions.
+6. Close and merge `api-serving` only after verification, then proceed to `portfolio-release` and separate Excalidraw architecture/pipeline diagrams.
+
+**Quality commands (run in this order):**
+
+```bash
+uv run ruff check --fix .
+uv run ruff format .
+uv run ruff check .
+uv run ruff format --check .
+uv run pytest -q
+```
+
+**Git verification:**
+
+```bash
+git branch --show-current
+git status --short
+git log --oneline -5
+```
