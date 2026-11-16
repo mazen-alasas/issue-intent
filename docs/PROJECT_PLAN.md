@@ -1,6 +1,6 @@
 # issue-intent — Project Plan
 
-**Updated:** 2026-11-13  
+**Updated:** 2026-11-16  
 
 **Project:** `issue-intent`  
 
@@ -15,40 +15,30 @@ The project emphasizes reproducible data preparation, leakage-aware evaluation, 
 ## 2. Roadmap and Current State
 
 | Stage | Branch | Deliverables | Status |
-
 |---|---|---|---|
-
 | Repository Foundation | `main` | `uv`, flat source layout, tooling, initial docs | Completed |
-
 | Dataset Feasibility | `dataset-feasibility` | Official training-data audit and feasibility findings | Completed |
-
 | Data Quality | `data-quality` | Exact-text deduplication, conflict removal, reports | Completed and merged |
-
 | Evaluation Protocol | `evaluation-protocol` | Stratified split, integrity hashes, reusable metrics, dummy baseline | Completed; incorporated into subsequent development |
-
 | Classical NLP | `classical-baselines` | Title-only, title+body, truncation, full-scale Logistic Regression/LinearSVC | Completed and merged |
-
 | Structured Preprocessing | `structured-preprocessing` | E0–E5 ablations, size audit, `structured_v1` Parquet builder | Completed and merged into `main` |
-
 | Neural NLP | `neural-baseline` | PyTorch TextCNN validation baseline | Completed and merged |
-
-| Transformer Fine-Tuning | `transformer-finetuning` | DistilBERT training and validation | Training and implementation complete; docs/merge pending |
-
-| Final Evaluation | `final-evaluation` | Integrate completed Kaggle official-test evaluation, error analysis, model card | Kaggle inference complete; repository integration pending |
-
-| API & Docker | `api-serving` | FastAPI, inference tests, Docker | Planned |
-
+| Transformer Fine-Tuning | `transformer-finetuning` | DistilBERT training and validation | Completed; integrated into subsequent stages |
+| Final Evaluation | `final-evaluation` | Official-test evaluation, saved-artifact audit, reports, model card | Completed and merged into `main` (`09672bf` base) |
+| API Serving & Benchmark | `api-serving` | FastAPI, inference tests, local HTTP benchmark | Implemented and committed (`69fda88`, `752dc87`, `073ecc7`) |
+| Docker Deployment | `api-serving` | CPU-only image, external checkpoint mount, smoke tests | Implemented and validated; commit pending |
+| CI | `api-serving` / next release stage | Automated lint, formatting, and checkpoint-free tests | Planned |
 | Portfolio Release | `portfolio-release` | CI, diagrams, reproducibility, documentation | Planned |
 
 **Optional:** Similar Issue Retrieval and Cloud Deployment, only if justified by measured needs.
 
-**Branch hygiene:** `structured-preprocessing` was merged into `main` after commits `1832bb5` and `5f8f376`. The existing `classical-baselines` branch may be behind `main`; inspect branch history and working-tree state before merging or rebasing. Do not assume a specific current branch from documentation alone.
+**Branch hygiene:** `structured-preprocessing` was merged into `main` after commits `1832bb5` and `5f8f376`; `final-evaluation` was subsequently merged into `main` (confirmed base `09672bf`). The active work is reported on `api-serving`, with its latest confirmed pre-Docker commit `073ecc7`. The Docker commit, push, and merge are not yet confirmed. Inspect the actual Git history and working-tree state before switching or merging.
 
 ## 3. Engineering Principles
 
 - Python 3.11, `uv` for environment/dependencies, and a flat `src/` structure.
 
-- English, meaningful docstrings; modular scripts and focused unit tests.
+- English, meaningful docstrings; modular scripts and focused nit tests.
 
 - Notebooks for EDA/audits; scripts for repeatable preparation, training, and evaluation.
 
@@ -67,17 +57,11 @@ The project emphasizes reproducible data preparation, leakage-aware evaluation, 
 **Standard checks:**
 
 ```bash
-
 uv run ruff check --fix .
-
 uv run ruff format .
-
 uv run ruff check .
-
 uv run ruff format --check .
-
 uv run pytest -q
-
 ```
 
 ## 4. Data and Evaluation Contract
@@ -98,19 +82,19 @@ uv run pytest -q
 
 ### Data quality policy
 
-1\. Preserve the original files unchanged.
+1. Preserve the original files unchanged.
 
-2\. Normalize missing title/body text to empty strings in the preparation pipeline.
+2. Normalize missing title/body text to empty strings in the preparation pipeline.
 
-3\. Retain one representative for each exact title–body group with a consistent label.
+3. Retain one representative for each exact title–body group with a consistent label.
 
-4\. Exclude all rows of an exact-text group if the group has conflicting labels.
+4. Exclude all rows of an exact-text group if the group has conflicting labels.
 
-5\. Do not deduplicate on issue `id` alone; its meaning and collisions need separate analysis.
+5. Do not deduplicate on issue `id` alone; its meaning and collisions need separate analysis.
 
-6\. Check exact cross-split title–body overlap; investigate near duplicates and repository shortcuts later.
+6. Check exact cross-split title–body overlap; investigate near duplicates and repository shortcuts later.
 
-7\. Keep the official test set unchanged and out of development-time fitting, model selection, and preprocessing decisions.
+7. Keep the official test set unchanged and out of development-time fitting, model selection, and preprocessing decisions.
 
 ### Evaluation protocol
 
@@ -139,21 +123,13 @@ The majority-class `bug` predictor achieved validation Micro F1 `0.530508`, Macr
 **Implemented:** `notebooks/01_dataset_feasibility.ipynb`, `src/data/prepare.py`, `tests/test_prepare.py`.
 
 | Measure | Verified result |
-
 |---|---:|
-
 | Original train rows | 1,275,881 |
-
 | Unique title–body combinations | 1,222,422 |
-
 | Conflicting text groups | 440 |
-
 | Conflicting-group rows removed | 4,146 |
-
 | Consistent-label duplicates removed | 49,753 |
-
 | Prepared rows | 1,221,982 |
-
 | Remaining exact title–body duplicates | 0 |
 
 Prepared label counts: bug `648,270`; feature `444,745`; question `74,474`; documentation `54,493`. Exact-text preparation does not prove semantic label quality.
@@ -179,21 +155,13 @@ Prepared label counts: bug `648,270`; feature `444,745`; question `74,474`; docu
 **Reference configuration:** TF-IDF word unigrams, `max_features=50_000`, `min_df=2`, `dtype=float32`; Logistic Regression `max_iter=1000`, `random_state=42`; fixed 183,298-row validation set.
 
 | Experiment | Training size | Micro F1 | Macro F1 |
-
 |---|---:|---:|---:|
-
 | Title-only Logistic Regression | 50K nested | 0.776817 | 0.592338 |
-
 | Title-only Logistic Regression | 100K nested | 0.785830 | 0.609182 |
-
 | Title-only Logistic Regression | 200K nested | 0.792704 | 0.618379 |
-
 | Title + raw full body | 200K | 0.832186 | 0.676879 |
-
 | Title + body truncated to 1K chars | 200K | 0.831853 | Not recorded here |
-
 | Title + body truncated to 2K chars | 200K | 0.832513 | Not recorded here |
-
 | Title + body truncated to 4K chars | 200K | 0.832633 | Not recorded here |
 
 Initial independent-sample LinearSVC results: Micro F1 `0.766850` at 50K and `0.779010` at 100K; these should not be conflated with nested sample runs.
@@ -206,20 +174,13 @@ Initial independent-sample LinearSVC results: Micro F1 `0.766850` at 50K and `0.
 
 All controlled structured comparisons use 200K training issues and the same full validation split. Preprocessing changes the **body only**.
 
-| ID | Controlled representation | Micro F1 | Macro F1 |
-
-|---|---|---:|---:|
-
-| E0 | Raw title + body | 0.832186 | 0.676879 |
-
-| E1 | Minimal cleaning | 0.831722 | 0.675462 |
-
-| E2 | Full structured, fenced code replaced | **0.833441** | 0.678902 |
-
-| E3 | Structured, fenced code retained | 0.830604 | 0.673184 |
-
-| E4 | E2 without repeated-line compression | 0.833304 | 0.678782 |
-
+| ID | Controlled representation | Micro F1 | Macro F1 
+|---|---|---:|---:
+| E0 | Raw title + body | 0.832186 | 0.676879 
+| E1 | Minimal cleaning | 0.831722 | 0.675462 
+| E2 | Full structured, fenced code replaced | **0.833441** | 0.678902 
+| E3 | Structured, fenced code retained | 0.830604 | 0.673184 
+| E4 | E2 without repeated-line compression | 0.833304 | 0.678782 
 | E5 | E4 with selected diagnostic signals retained from fenced code | 0.833266 | **0.678985** |
 
 **Selection:** E4 is the practical classical preprocessing baseline, not the highest-scoring run on Micro F1. E2 scored slightly higher but added repeated-line compression with negligible character savings; E5 retained additional diagnostic content but did not improve Micro F1. Do not present these tiny score differences as statistically significant.
@@ -227,15 +188,10 @@ All controlled structured comparisons use 200K training issues and the same full
 **Size analysis (200K, title + body characters):**
 
 | Input | Characters | Reduction vs raw |
-
 |---|---:|---:|
-
 | Raw | 251,265,035 | 0% |
-
 | E2 | 129,450,078 | 48.4807% |
-
 | E4 | 129,537,189 | 48.4460% |
-
 | E5 | 130,897,738 | 47.9045% |
 
 The chosen E4 configuration is:
@@ -264,29 +220,18 @@ The builder reads source CSVs in 10K-row chunks, preserves `title` and `labels`,
 **Generated locally (Git-ignored):**
 
 ```text
-
 data/processed/structured_v1/
-
-├── train.parquet
-
-├── validation.parquet
-
-└── manifest.json
-
+    ├── train.parquet
+    ├── validation.parquet
+    └── manifest.json
 ```
 
 | Measure | Train | Validation |
-
 |---|---:|---:|
-
 | Rows | 1,038,684 | 183,298 |
-
 | Body characters before | 1,265,833,189 | 226,574,571 |
-
 | Body characters after | 626,208,289 | 109,328,175 |
-
 | Body reduction | 50.53% | 51.7474% |
-
 | Output bytes | 283,084,647 | 49,808,518 |
 
 **Output SHA-256:**
@@ -305,21 +250,21 @@ Post-build SHA-256, row count, and schema verification passed for both files. Th
 
 ### Implementation plan
 
-1\. Verify `main`, `classical-baselines`, and working-tree state. Safely incorporate completed structured preprocessing changes into the branch used for the next experiment.
+1. Verify `main`, `classical-baselines`, and working-tree state. Safely incorporate completed structured preprocessing changes into the branch used for the next experiment.
 
-2\. Update and commit the tracked documentation so experiment decisions remain available even when local JSON/Parquet files are absent.
+2. Update and commit the tracked documentation so experiment decisions remain available even when local JSON/Parquet files are absent.
 
-3\. Inspect existing training scripts and estimated memory requirements before attempting a 1,038,684-row run. Prefer reuse over rewriting the pipeline.
+3. Inspect existing training scripts and estimated memory requirements before attempting a 1,038,684-row run. Prefer reuse over rewriting the pipeline.
 
-4\. Read `structured_v1/train.parquet` and `validation.parquet`; construct title + processed body for TF-IDF without re-running E4 on already processed text.
+4. Read `structured_v1/train.parquet` and `validation.parquet`; construct title + processed body for TF-IDF without re-running E4 on already processed text.
 
-5\. Fit vectorizer/model using training data only. Keep the full fixed validation set; save metrics, confusion matrix, per-class results, timings, and model provenance.
+5. Fit vectorizer/model using training data only. Keep the full fixed validation set; save metrics, confusion matrix, per-class results, timings, and model provenance.
 
-6\. Compare full-scale results with 200K E4 (`Micro F1 0.833304`, `Macro F1 0.678782`). Differences may reflect training size; avoid attributing them solely to preprocessing.
+6. Compare full-scale results with 200K E4 (`Micro F1 0.833304`, `Macro F1 0.678782`). Differences may reflect training size; avoid attributing them solely to preprocessing.
 
-7\. Evaluate whether a full-scale LinearSVC comparison adds enough value to justify compute. If run, hold input representation, split, and evaluation protocol fixed.
+7. Evaluate whether a full-scale LinearSVC comparison adds enough value to justify compute. If run, hold input representation, split, and evaluation protocol fixed.
 
-8\. Record limitations, final classical selection, and reproducibility commands; then close the classical stage.
+8. Record limitations, final classical selection, and reproducibility commands; then close the classical stage.
 
 ### Exit criteria
 
@@ -363,9 +308,11 @@ Post-build SHA-256, row count, and schema verification passed for both files. Th
 
 ### API and Portfolio (`api-serving`, `portfolio-release`)
 
-- FastAPI inference endpoint, input validation, predictable preprocessing/tokenization, and tests.
+- FastAPI inference endpoint, input validation, predictable preprocessing/tokenization, and tests — implemented.
 
-- Docker packaging and minimal CI for quality checks.
+- Docker packaging and smoke tests — implemented and locally validated; commit pending.
+
+- Minimal GitHub Actions CI — planned.
 
 - Clear README, experiment summary, reproducibility guide, and architecture/data-flow diagrams (Excalidraw or exported images where useful).
 
@@ -393,75 +340,51 @@ Post-build SHA-256, row count, and schema verification passed for both files. Th
 
 ## 9. Relevant Paths
 
-| Purpose | Path |
-
-|---|---|
-
-| Data preparation | `src/data/prepare.py` |
-
-| Train/validation split | `src/data/split.py` |
-
-| Stratified sampling | `src/data/sampling.py` |
-
-| Metrics | `src/models/evaluation.py` |
-
-| Majority baseline | `src/models/dummy_baseline.py` |
-
-| Classical title-only models | `src/models/train_classical.py` |
-
-| Learning curve | `src/models/learning_curve.py` |
-
-| Title + body baseline | `src/models/train_title_body.py` |
-
-| Structured transformations | `src/preprocessing/structured.py` |
-
-| Structured ablations | `src/models/structured_ablation_experiment.py` |
-
-| Input size analysis | `src/preprocessing/analyze_size.py` |
-
-| Versioned Parquet builder | `src/preprocessing/build_dataset.py` |
-
-| Prepared CSVs | `data/processed/train.csv`, `data/processed/validation.csv` |
-
-| Versioned dataset | `data/processed/structured_v1/` |
-
-| Dataset provenance | `data/processed/structured_v1/manifest.json` |
-
+| Purpose | Path
+|---|--
+| Data preparation | `src/data/prepare.py`
+| Train/validation split | `src/data/split.py`
+| Stratified sampling | `src/data/sampling.py`
+| Metrics | `src/models/evaluation.py`
+| Majority baseline | `src/models/dummy_baseline.py`
+| Classical title-only models | `src/models/train_classical.py`
+| Learning curve | `src/models/learning_curve.py`
+| Title + body baseline | `src/models/train_title_body.py`
+| Structured transformations | `src/preprocessing/structured.py`
+| Structured ablations | `src/models/structured_ablation_experiment.py`
+| Input size analysis | `src/preprocessing/analyze_size.py`
+| Versioned Parquet builder | `src/preprocessing/build_dataset.py`
+| Prepared CSVs | `data/processed/train.csv`, `data/processed/validation.csv`
+| Versioned dataset | `data/processed/structured_v1/`
+| Dataset provenance | `data/processed/structured_v1/manifest.json`
 | Progress log | `docs/PROGRESS.md` |
-
+| API inference | `src/api/inference.py`, `src/api/main.py` |
+| API benchmark | `scripts/benchmark_api.py` |
+| Docker packaging | `Dockerfile`, `docker/requirements.txt`, `.dockerignore` |
+| API smoke test | `scripts/smoke_test_api.py` |
+| Docker guide | `docs/DOCKER_DEPLOYMENT.md` 
 | Roadmap and policies | `docs/PROJECT_PLAN.md` |
 
 ## 10. Commands for Stage Transitions
 
 ```bash
-
 # Inspect current Git state before switching or merging.
-
 git branch --show-current
-
 git status --short
-
 git log --oneline -5
 
 # Quality gate.
-
 uv run ruff check --fix .
-
 uv run ruff format .
-
 uv run ruff check .
-
 uv run ruff format --check .
-
 uv run pytest -q
 
 # Existing structured dataset builder (do not rerun if v1 exists).
-
 # uv run python -m src.preprocessing.build_dataset
-
 ```
 
-The next phase begins with full-scale classical training and comparison, **not** a repeat of the completed E0–E5 preprocessing ablations.
+Historical note: full-scale classical training and the E0–E5 ablations have already been completed. The current focus is closing Docker deployment, adding CI, and preparing portfolio release.
 
 ## Full-scale classical baselines — November 2026
 
@@ -472,11 +395,8 @@ Training: 1,038,684 issues. Validation: 183,298 issues.
 Features: title + body, TF-IDF unigrams, max_features=50,000.
 
 | Model | Micro F1 | Macro F1 | Weighted F1 | Wall time | Peak RAM |
-
 | --- | ---: | ---: | ---: | ---: | ---: |
-
 | Logistic Regression | 0.842650 | 0.706409 | 0.835740 | 4m 04s | 3.47 GiB |
-
 | LinearSVC | 0.839202 | 0.697714 | 0.831276 | 6m 15s | 3.56 GiB |
 
 Selected classical baseline: Logistic Regression.
@@ -490,30 +410,43 @@ Remaining weaknesses: documentation recall 0.4956 and
 question recall 0.3928 for Logistic Regression.
 
 The official test split was held out throughout classical and neural model selection. Subsequent transformer and official-test work is recorded below.
-## 11. Current Results and Remaining Roadmap — 2026-11-13
+## 11. Current Results and Remaining Roadmap — 2026-11-16
 
-### Completed development-stage comparison (same 183,298-row validation set)
+### 11.1 Model comparison and final evaluation
 
-| Model | Validation Micro F1 | Validation Macro F1 |
-|---|---:|---:|
-| TF-IDF + Logistic Regression (full scale) | 0.842650 | 0.706409 |
-| TextCNN (best checkpoint) | 0.852650 | 0.724730 |
-| DistilBERT (selected epoch 3) | 0.883665 | 0.788362 |
+| Model | Evaluation split | Micro F1 | Macro F1 |
+|---|---|---:|---:|
+| TF-IDF + Logistic Regression (full scale) | Validation (183,298) | 0.842650 | 0.706409 |
+| TextCNN (selected checkpoint) | Validation (183,298) | 0.852650 | 0.724730 |
+| DistilBERT (selected epoch 3) | Validation (183,298) | 0.883665 | 0.788362 |
+| DistilBERT | Official test (142,320) | **0.886558** | **0.791175** |
 
-The project's overall evaluation protocol reports Micro F1 as primary. DistilBERT checkpoint selection specifically used validation Macro F1 to account for class imbalance. This distinction is recorded rather than retroactively changing the protocol.
+DistilBERT checkpoint selection used validation **Macro F1**; the overall reporting protocol uses **Micro F1** as primary. The official-test results were audited against saved predictions and processed source data; this does not independently prove the exact weights used for the original Kaggle inference.
 
-### Transformer stage closure
+### 11.2 Completed stage and branch evidence
 
-- Implementation committed as `6986b78` on `transformer-finetuning`.
-- Record training results and configuration in [`TRANSFORMER_EXPERIMENT.md`](TRANSFORMER_EXPERIMENT.md).
-- Commit documentation and merge after review; preserve best model checkpoint separately from Git.
+- `transformer-finetuning`: implementation commit `6986b78`; training complete, with detailed results in [`TRANSFORMER_EXPERIMENT.md`](TRANSFORMER_EXPERIMENT.md).
+- `final-evaluation`: completed and merged into `main` (confirmed base `09672bf`); see [`FINAL_EVALUATION_REPORT.md`](FINAL_EVALUATION_REPORT.md) and [`MODEL_CARD.md`](MODEL_CARD.md).
+- `api-serving`: inference commit `69fda88`, FastAPI commit `752dc87`, and benchmark commit `073ecc7`.
+- CPU-only Docker image and API smoke tests implemented and locally validated; **Docker changes not yet confirmed committed**.
 
-### Final evaluation — next branch
+### 11.3 API and Docker validation
 
-Official-test inference has already been performed on Kaggle for 142,320 issues, producing Micro F1 `0.886558`, Macro F1 `0.791175`, and Weighted F1 `0.884702`. These are **official-test** metrics, not validation metrics. Repository integration, metric reproduction from saved predictions, detailed error analysis, model card, and model size/latency reporting remain to be completed. Do not tune on test results.
+- Endpoints: `GET /health`, `POST /predict`; model loaded at FastAPI startup.
+- Docker: `python:3.11-slim`, CPU-only PyTorch, non-root `appuser`, read-only external checkpoint mount.
+- Docker runtime excludes pandas, PyArrow, and scikit-learn.
+- Latest reported full quality gate: **340 tests passed**; Ruff lint and formatting passed.
+- API smoke test passed; reference prediction `bug` with confidence `0.9956983327865601`.
+- Image size: **1.64 GB**, compared with approximately **1.91 GB** previously.
+- Local CPU HTTP latency/throughput observations are recorded in [`PROGRESS.md`](PROGRESS.md), Section 10; do not treat them as Docker load-test results.
+- Full Docker instructions: [`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md).
 
-### Serving and release
+### 11.4 Remaining work
 
-- `api-serving`: load frozen model and tokenizer, reproduce E4 body preprocessing and token encoding, build FastAPI endpoints and integration tests, measure serving latency, add Docker packaging.
-- `portfolio-release`: CI, README, reproducibility guide, Excalidraw architecture/pipeline diagrams, limitations, and CV/portfolio narrative.
+1. Verify staged files, finalize the Docker documentation and implementation commit on `api-serving`.
+2. Push the branch and review a Pull Request against `main`.
+3. Implement GitHub Actions CI for Ruff and checkpoint-independent automated tests; verify CI before merging.
+4. Merge `api-serving` after review and checks.
+5. Begin `portfolio-release` with reproducibility, limitations, polished project presentation, and separate Excalidraw diagrams.
 
+**Do not mark CI, Docker commit, branch merge, or portfolio release completed until independently confirmed.**

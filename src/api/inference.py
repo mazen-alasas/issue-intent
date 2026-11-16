@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -7,13 +8,13 @@ from transformers import (
     AutoTokenizer,
 )
 
-from src.data.neural_dataset import LABEL_TO_ID
+from src.data.labels import LABEL_TO_ID
 from src.data.transformer_dataset import TransformerInputConfig, encode_issue
-from src.models.evaluate_transformer import (
+from src.models.transformer_utils import (
     resolve_device,
     validate_model_labels,
 )
-from src.models.structured_ablation_experiment import EXPERIMENTS
+from src.preprocessing.experiment_configs import EXPERIMENTS
 from src.preprocessing.structured import preprocess_structured
 
 LABEL_NAMES = tuple(
@@ -25,6 +26,19 @@ LABEL_NAMES = tuple(
 )
 
 DEFAULT_CHECKPOINT = Path.home() / "issue-intent-artifacts/models/distilbert/best"
+
+
+def resolve_checkpoint_path(checkpoint: Path | None = None) -> Path:
+    """Resolve an explicit, environment, or default checkpoint path."""
+    if checkpoint is not None:
+        return Path(checkpoint).expanduser()
+
+    configured = os.environ.get("ISSUE_INTENT_CHECKPOINT")
+
+    if configured:
+        return Path(configured).expanduser()
+
+    return DEFAULT_CHECKPOINT
 
 
 @dataclass(frozen=True)
@@ -39,11 +53,11 @@ class IssueClassifier:
 
     def __init__(
         self,
-        checkpoint: Path = DEFAULT_CHECKPOINT,
+        checkpoint: Path | None = None,
         device: str = "cpu",
         input_config: TransformerInputConfig | None = None,
     ) -> None:
-        self.checkpoint = Path(checkpoint).expanduser()
+        self.checkpoint = resolve_checkpoint_path(checkpoint)
 
         if not self.checkpoint.is_dir():
             raise FileNotFoundError(

@@ -6,13 +6,13 @@
 
 **Local path:** `/home/mazen/issue-intent`  
 
-**Last updated:** 2026-11-15
+**Last updated:** 2026-11-16
 
-**Current stage:** API serving — inference and FastAPI endpoints committed; benchmarking implemented and measured; benchmark quality gate/commit pending confirmation.
+**Current stage:** `api-serving` — inference, FastAPI, and HTTP benchmarking committed; CPU-only Docker deployment and smoke tests implemented and validated locally; Docker commit pending.
 
 **Last completed branch:** `final-evaluation` (merged into `main`; baseline commit `09672bf`).
 
-**Current branch:** `api-serving` (latest confirmed commit `752dc87`); next: close benchmarking, then Docker and CI.
+**Current branch:** `api-serving` (latest confirmed prior commit `073ecc7` for benchmarking; Docker changes not yet confirmed committed). Next: documentation and Docker commit, then CI and merge.
 
 ## Executive Status
 
@@ -20,9 +20,9 @@ Repository foundation, data preparation and quality, evaluation protocol, struct
 
 The selected DistilBERT checkpoint (epoch 3, chosen by validation Macro F1) achieved **0.886558 Micro F1** and **0.791175 Macro F1** on the 142,320-row official test set. Saved evaluation outputs passed local integrity and source-alignment audits; those audits do not cryptographically prove the provenance of the original Kaggle inference weights.
 
-On `api-serving`, the reusable CPU-first inference engine and FastAPI `/health` and `/predict` endpoints were implemented, tested, exercised against the real local checkpoint, and committed. The most recently reported full automated gate was **310 passing tests**, before the new benchmark tests were added. An HTTP benchmark script and tests were subsequently drafted, and a real local benchmark run produced the results recorded in Section 10; the new test-suite result and benchmark commit have **not yet been confirmed**.
+On `api-serving`, the reusable inference engine, FastAPI endpoints, and local HTTP benchmark have been implemented. The benchmark was committed as `073ecc7`. CPU-only Docker deployment was subsequently built and validated with the real checkpoint, a non-root container user, read-only checkpoint mounting, and a reusable API smoke test. The latest reported full quality gate passed **340 tests**, Ruff lint, and formatting. The Docker image size was **1.64 GB**; its earlier version was approximately **1.91 GB**. These Docker changes have not yet been confirmed committed.
 
-**Next:** verify the benchmark files and complete the quality gate, ignore generated benchmark JSON, commit the benchmark/documentation changes, then proceed to Docker, CI, and portfolio release.
+**Next:** finalize and commit Docker and documentation changes; add CI, review/push/merge `api-serving`, and proceed to portfolio release.
 
 ## Environment and Conventions
 
@@ -605,7 +605,7 @@ This is one functional smoke test, not a measure of model accuracy or probabilit
 - `POST /predict` accepts a validated title/body request and returns label, confidence, and per-class probabilities.
 - Pydantic input constraints: title up to 500 characters; optional body up to 20,000 characters; at least one non-whitespace field; unexpected fields forbidden.
 - Tests cover schema validation, endpoint behavior, lifespan, unavailable-model behavior, and OpenAPI.
-- Most recently reported gate before benchmark tests: **310 tests passed**, Ruff checks passed.
+- Historical gate before benchmark tests: **310 tests passed**, Ruff checks passed. The latest reported full gate after Docker smoke tests is **340 passed**.
 - Real Uvicorn run on `127.0.0.1:8000`: `GET /health` returned 200, `POST /predict` returned 200 with the real checkpoint, and graceful shutdown completed. `GET /` returned 404 as expected because no root endpoint is defined.
 - The working tree was confirmed clean immediately after commit `752dc87`.
 
@@ -626,9 +626,9 @@ curl -sS -X POST http://127.0.0.1:8000/predict \
   }'
 ```
 
-## 10. API Performance Benchmark — Implemented and Measured; Closure Pending
+## 10. API Performance Benchmark — Implemented, Measured, and Committed
 
-**Proposed files:** `scripts/benchmark_api.py`, `scripts/__init__.py`, and `tests/test_benchmark_api.py`.
+**Implementation:** `scripts/benchmark_api.py` and `tests/test_benchmark_api.py`; benchmark commit `073ecc7` — `perf: add reproducible API benchmarking and baseline results`. Confirm `scripts/__init__.py` from the repository if its presence is relevant.
 
 The user reported successfully executing the benchmark and saving `artifacts/benchmarks/api_baseline.json`. The benchmark performs sequential HTTP requests with short, medium, and long synthetic inputs and bounded concurrency scenarios. It measures end-to-end local HTTP latency, including preprocessing, tokenization, model inference, and response overhead. The first request in each scenario is **not** an independent measurement of model startup or a guaranteed cold inference.
 
@@ -670,10 +670,9 @@ Higher concurrency increased throughput by approximately 22% from level 1 to lev
 - Results are local, CPU-only, short-duration measurements with 20 samples per scenario.
 - No independent model-startup-time benchmark, sustained load test, or production deployment measurement has been completed.
 - P95/P99 from 20 observations are descriptive and unstable; avoid interpreting them as robust service-level guarantees.
-- The benchmark tests were drafted, but their **full quality-gate result has not been reported**. Do not count them as passing yet.
-- `scripts/__init__.py` was recommended for explicit package organization; its creation has not been independently confirmed.
-- Confirm `artifacts/benchmarks/api_baseline.json` is ignored by Git. If needed, add `/artifacts/benchmarks/` to `.gitignore`.
-- After the quality gate, review the staged diff and commit the benchmark and this documentation. No benchmark commit hash has been reported yet.
+- The latest full quality gate, including subsequent Docker smoke-test work, passed **340 tests** and Ruff checks; no independent per-file test run is claimed here.
+- Benchmark commit: `073ecc7` (`perf: add reproducible API benchmarking and baseline results`).
+- `scripts/__init__.py` and the Git ignore status of `artifacts/benchmarks/api_baseline.json` were not independently inspected from the uploaded documents; verify in the local repository if needed.
 
 **Reproduction command (with the API already running):**
 
@@ -685,16 +684,76 @@ uv run python scripts/benchmark_api.py \
   --output artifacts/benchmarks/api_baseline.json
 ```
 
-## 11. Next Steps — Docker, CI, and Portfolio Release
+## 11. Docker Containerization — Implemented and Validated; Commit Pending
 
-1. Confirm `scripts/__init__.py`, the benchmark unit tests, and the ignored output path; run the full quality gate.
-2. Commit the reproducible benchmark and updated progress documentation on `api-serving` after successful checks.
-3. Add a Dockerfile and `.dockerignore`; keep the local checkpoint outside the image and use a runtime volume mount. Validate `/health` and `/predict` inside the container.
-4. Add CI for lint, formatting, and tests that do not require downloading the large private checkpoint.
-5. Update README and serving/deployment documentation with verified commands, limitations, and reproducible instructions.
-6. Close and merge `api-serving` only after verification, then proceed to `portfolio-release` and separate Excalidraw architecture/pipeline diagrams.
+**Branch:** `api-serving`  
+**Validation date:** 2026-11-15 (local container smoke tests; latest full quality gate reported afterward).  
+**Files:** `Dockerfile`, `.dockerignore`, `docker/requirements.txt`, `src/api/inference.py`, `src/data/labels.py`, `src/data/neural_dataset.py`, `src/models/transformer_utils.py`, `src/models/evaluate_transformer.py`, `src/preprocessing/experiment_configs.py`, `src/models/structured_ablation_experiment.py`, `scripts/smoke_test_api.py`, and corresponding tests.  
+**Guide:** [`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md).
 
-**Quality commands (run in this order):**
+### 11.1 Implementation and dependency isolation
+
+- Built a CPU-only Docker image based on `python:3.11-slim` with CPU PyTorch `2.6.0`, Transformers `5.22.2`, FastAPI, and Uvicorn.
+- Kept the evaluated checkpoint outside Git and the image; mounted it read-only at `/models/distilbert`.
+- Ran the service as non-root `appuser`, exposing container port `8000` on host loopback `127.0.0.1:8001`.
+- Extracted shared labels to `src/data/labels.py`, device/label validation to `src/models/transformer_utils.py`, and E2–E5 configurations to `src/preprocessing/experiment_configs.py`.
+- Preserved compatibility via explicit re-exports from original training/evaluation modules; inference imports only the lightweight shared modules.
+- Verified that `pandas`, `pyarrow`, and `sklearn` were **not installed** in the running container.
+
+### 11.2 Verified local results
+
+| Check | Observed result |
+|---|---|
+| Docker startup and checkpoint loading | Successful |
+| `GET /health` | HTTP 200; `model_loaded: true` |
+| `POST /predict` | HTTP 200 |
+| Reference prediction | `bug` |
+| Reference confidence | `0.9956983327865601` |
+| Container user | `appuser` |
+| API smoke test | Passed |
+| Ruff lint and formatting | Passed |
+| Full automated test suite | **340 passed** (18.37 s) |
+| Docker image | **1.64 GB** (previously approximately 1.91 GB) |
+
+The reference prediction matched the previously observed output. This single example does not establish equivalence on all possible inputs. The approximately 270 MB (14.1%) image reduction is not a measured latency or memory improvement.
+
+### 11.3 Reproduction
+
+```bash
+docker build -t issue-intent-api:local .
+docker run --rm \
+  --name issue-intent-api \
+  -p 127.0.0.1:8001:8000 \
+  -v "$HOME/issue-intent-artifacts/models/distilbert/best:/models/distilbert:ro" \
+  issue-intent-api:local
+```
+
+In a separate terminal:
+
+```bash
+curl http://127.0.0.1:8001/health
+uv run python scripts/smoke_test_api.py
+```
+
+The checkpoint path is machine-specific. Full commands and limitations are in [`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md).
+
+### 11.4 Limitations and closure
+
+- Validated locally under WSL2 with CPU inference; no cloud deployment or production SLA is claimed.
+- The Section 10 benchmark measured the local FastAPI process, not Docker-specific throughput.
+- No production authentication, rate limiting, sustained load test, or independent model-startup benchmark is reported.
+- Docker image size is not runtime RAM consumption; pinned top-level requirements are not a complete dependency lock.
+- **Pending:** review staged changes and create the Docker commit; push and merge the branch only after review.
+
+## 12. Next Steps — CI and Portfolio Release
+
+1. Review documentation and staged Docker changes; commit them on `api-serving`.
+2. Push `api-serving` and open a Pull Request against `main`.
+3. Add GitHub Actions CI for Ruff lint, formatting, and tests that do not require the external checkpoint.
+4. Re-run the quality gate, review CI results, and merge `api-serving` when ready.
+5. Start `portfolio-release`: polish README and reproducibility instructions; produce separate Excalidraw architecture/pipeline diagrams and portfolio narrative.
+
+**Quality commands (in order):**
 
 ```bash
 uv run ruff check --fix .
@@ -709,5 +768,6 @@ uv run pytest -q
 ```bash
 git branch --show-current
 git status --short
+git diff --check
 git log --oneline -5
 ```

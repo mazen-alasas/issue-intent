@@ -1,0 +1,81 @@
+# Version Control
+.git/
+.github/
+.gitignore
+
+
+# Python 
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+
+# Datasets and Generated Artifacts
+data/
+artifacts/
+models/
+
+*.csv
+*.parquet
+*.arrow
+
+
+# Model Weights
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+*.bin
+
+
+# Notebooks 
+notebooks/
+.ipynb_checkpoints/
+*.ipynb
+runs/
+wandb/
+tensorboard/
+
+
+# Tests and Development Documentation
+tests/
+docs/
+README.md
+
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+
+
+# Temporary Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.tmp
+*.log
+
+
+# Local Docker Configuration Overrides
+docker-compose.override.yml
+compose.override.yaml
+
+
+# Project Files
+pyproject.toml
+uv.lock

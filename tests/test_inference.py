@@ -1,9 +1,11 @@
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 import torch
 
 from src.api import inference
+from src.api.inference import DEFAULT_CHECKPOINT, resolve_checkpoint_path
 from src.data.transformer_dataset import TransformerInputConfig
 
 
@@ -364,3 +366,33 @@ def test_uses_real_e4_preprocessing(classifier_factory):
 
     assert context.tokenizer.calls[0] == "Original title"
     assert context.tokenizer.calls[1] == "See important details."
+
+
+def test_checkpoint_path_uses_default(monkeypatch):
+    monkeypatch.delenv("ISSUE_INTENT_CHECKPOINT", raising=False)
+
+    assert resolve_checkpoint_path() == DEFAULT_CHECKPOINT
+
+
+def test_checkpoint_path_uses_environment(monkeypatch):
+    monkeypatch.setenv(
+        "ISSUE_INTENT_CHECKPOINT",
+        "/models/distilbert",
+    )
+
+    assert resolve_checkpoint_path() == Path("/models/distilbert")
+
+
+def test_explicit_checkpoint_overrides_environment(monkeypatch):
+    monkeypatch.setenv(
+        "ISSUE_INTENT_CHECKPOINT",
+        "/models/environment",
+    )
+
+    assert resolve_checkpoint_path(Path("/models/explicit")) == Path("/models/explicit")
+
+
+def test_empty_environment_uses_default(monkeypatch):
+    monkeypatch.setenv("ISSUE_INTENT_CHECKPOINT", "")
+
+    assert resolve_checkpoint_path() == DEFAULT_CHECKPOINT

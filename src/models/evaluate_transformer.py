@@ -26,6 +26,12 @@ from transformers import (
 
 from src.data.neural_dataset import LABEL_TO_ID
 from src.data.transformer_dataset import TransformerInputConfig, encode_issue
+from src.models.transformer_utils import (
+    resolve_device as resolve_device,
+)
+from src.models.transformer_utils import (
+    validate_model_labels as validate_model_labels,
+)
 
 LABEL_NAMES = [
     label for label, _ in sorted(LABEL_TO_ID.items(), key=lambda item: item[1])
@@ -77,39 +83,6 @@ def set_seed(seed):
 
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-
-
-def resolve_device(name):
-    if name == "auto":
-        name = "cuda" if torch.cuda.is_available() else "cpu"
-
-    if name == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError("CUDA requested but unavailable")
-
-    return torch.device(name)
-
-
-def validate_model_labels(model, *, allow_generic_labels=False):
-    expected = {index: label for index, label in enumerate(LABEL_NAMES)}
-
-    actual = {int(index): str(label) for index, label in model.config.id2label.items()}
-
-    if actual == expected:
-        return
-
-    generic = {index: f"LABEL_{index}" for index in range(len(LABEL_NAMES))}
-
-    if actual == generic and allow_generic_labels:
-        return
-
-    if actual == generic:
-        raise ValueError(
-            "Checkpoint uses generic LABEL_N names. "
-            "Verify the training label mapping, then explicitly "
-            "enable allow_generic_labels."
-        )
-
-    raise ValueError(f"Checkpoint label mapping mismatch: {actual} != {expected}")
 
 
 def iter_test_batches(path, batch_size):
