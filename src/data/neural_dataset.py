@@ -8,9 +8,10 @@ import pyarrow.parquet as pq
 import torch
 from torch.utils.data import IterableDataset
 
+from src.data.labels import LABEL_TO_ID as LABEL_TO_ID
+from src.data.labels import LABELS as LABELS
+
 TOKEN_RE = re.compile(r"\w+|[^\w\s]", re.UNICODE)
-LABELS = ("bug", "documentation", "feature", "question")
-LABEL_TO_ID = {label: i for i, label in enumerate(LABELS)}
 PAD, UNK = "<pad>", "<unk>"
 
 

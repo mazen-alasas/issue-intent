@@ -17,6 +17,7 @@ from src.models.train_classical import (
     VALIDATION_PATH,
     build_title_pipeline,
 )
+from src.preprocessing.experiment_configs import EXPERIMENTS as EXPERIMENTS
 from src.preprocessing.structured import (
     StructuredPreprocessingConfig,
     preprocess_structured,
@@ -24,20 +25,6 @@ from src.preprocessing.structured import (
 
 SAMPLE_SIZE = 200_000
 RESULTS_DIR = ROOT / "data/processed"
-
-EXPERIMENTS = {
-    "E2": StructuredPreprocessingConfig(),
-    "E3": StructuredPreprocessingConfig(
-        replace_fenced_code=False,
-    ),
-    "E4": StructuredPreprocessingConfig(
-        compress_repeated_blocks=False,
-    ),
-    "E5": StructuredPreprocessingConfig(
-        compress_repeated_blocks=False,
-        selective_code_compression=True,
-    ),
-}
 
 
 def build_experiment_text(
