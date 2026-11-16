@@ -40,6 +40,7 @@ The selected structured preprocessing configuration, **E4**, processes the **bod
 4. **Transformer:** fine-tune DistilBERT with gradient accumulation and validation-based checkpoint selection.
 5. **Final evaluation:** evaluate the selected checkpoint on the official held-out test set, preserve predictions and reports, and audit saved outputs for consistency and source alignment.
 6. **Serving:** expose the selected checkpoint through a tested FastAPI service, measure local CPU HTTP performance, and package inference in a CPU-only Docker image.
+7. **Web application:** build a GitHub-inspired issue editor using React, TypeScript, and Vite, integrated with the existing FastAPI inference service.
 
 The repository uses Python scripts for reproducible pipelines, notebooks for exploration, and automated tests for core logic. Large datasets, model weights, and generated evaluation artifacts are kept outside Git.
 
@@ -114,6 +115,7 @@ The example checkpoint path is specific to the local machine. See the [Docker De
 | FastAPI Inference and Local HTTP Benchmark | Implemented and tested; benchmark committed |
 | Docker Containerization and Smoke Tests | Implemented and validated; commit pending |
 | CI (GitHub Actions) | Planned |
+| Web Application | Planned |
 | Portfolio Release | Planned |
 
 ## Documentation

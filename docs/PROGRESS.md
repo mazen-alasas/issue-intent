@@ -771,3 +771,70 @@ git status --short
 git diff --check
 git log --oneline -5
 ```
+
+## 12. GitHub Actions CI — Implemented and Validated
+
+**Branch:** `api-serving`
+**Commit:** `3f99725` — `ci: add GitHub Actions quality checks`
+
+**Implementation:** `.github/workflows/ci.yml`.
+
+### 12.1 CI configuration
+
+- GitHub Actions workflow using an Ubuntu-hosted runner.
+- Python 3.11 environment managed with `uv`.
+- Frozen dependency synchronization using `uv sync --frozen`.
+- Ruff lint and formatting validation.
+- Automated test execution with pytest.
+- Triggered by pushes to `main` and `api-serving`, and pull requests targeting `main`.
+
+### 12.2 Validation results
+
+| Check | Result |
+|---|---|
+| Workflow | CI #1 |
+| Branch | `api-serving` |
+| Commit | `3f99725` |
+| GitHub Actions | Passed |
+| Total execution time | 1m 24s |
+
+The workflow completed successfully on GitHub-hosted infrastructure without requiring the locally stored DistilBERT checkpoint.
+
+### 12.3 Limitations
+
+- CI validates source quality and automated tests; it does not perform full checkpoint-backed inference.
+- Docker build and deployment are not included in the current CI workflow.
+- Production performance and cloud deployment remain outside the verified scope.
+
+### 12.4 Closure
+
+- [x] Implement CI workflow.
+- [x] Run CI successfully on GitHub Actions.
+- [ ] Merge `api-serving` into `main`.
+
+## 13. Next Steps — API Serving Merge and Web Application
+
+**Current branch:** `api-serving`  
+**Next planned branch:** `web-application`
+
+### 13.1 Close API Serving
+
+1. Review and merge `api-serving` into `main`.
+2. Confirm GitHub Actions CI succeeds on the merged `main` branch.
+3. Verify the working tree is clean and the local `main` branch is up to date.
+
+### 13.2 Begin Web Application
+
+1. Create `web-application` from the updated `main` branch.
+2. Initialize the React, TypeScript, and Vite frontend.
+3. Implement a GitHub-inspired issue creation interface.
+4. Integrate the existing FastAPI `/predict` endpoint.
+5. Display predictions, confidence, and per-class probabilities.
+6. Add validation, loading states, error handling, and responsive styling.
+7. Add frontend tests and end-to-end integration checks.
+8. Configure Docker Compose for frontend and backend deployment.
+9. Validate the complete application using the real DistilBERT checkpoint.
+
+### 13.3 Subsequent Stage
+
+After the web application is implemented, tested, documented, and merged, proceed to `portfolio-release` for final presentation, architecture diagrams, and release documentation.
