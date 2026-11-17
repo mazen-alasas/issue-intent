@@ -1,18 +1,18 @@
 # Project Progress
 
-**Project:** `issue-intent`  
+**Project:** `issue-intent`
 
-**Repository:** `git@github.com:mazen-alasas/issue-intent.git`  
+**Repository:** `git@github.com:mazen-alasas/issue-intent.git`
 
-**Local path:** `/home/mazen/issue-intent`  
+**Local path:** `/home/mazen/issue-intent`
 
-**Last updated:** 2026-11-16
+**Last updated:** 2026-11-17
 
-**Current stage:** `api-serving` — inference, FastAPI, and HTTP benchmarking committed; CPU-only Docker deployment and smoke tests implemented and validated locally; Docker commit pending.
+**Current stage:** `web-application` — React/TypeScript frontend, Markdown editor, and FastAPI integration implemented and committed; documentation and merge pending.
 
-**Last completed branch:** `final-evaluation` (merged into `main`; baseline commit `09672bf`).
+**Last completed branch:** `api-serving` (Docker and CI work recorded as committed; present `web-application` branch is based on the incorporated serving work).
 
-**Current branch:** `api-serving` (latest confirmed prior commit `073ecc7` for benchmarking; Docker changes not yet confirmed committed). Next: documentation and Docker commit, then CI and merge.
+**Current branch:** `web-application` (HEAD `6ad5e02`, confirmed 2026-11-17; clean working tree before documentation edits). Next: documentation commit, quality gates, CI review, and merge into `main`.
 
 ## Executive Status
 
@@ -20,9 +20,11 @@ Repository foundation, data preparation and quality, evaluation protocol, struct
 
 The selected DistilBERT checkpoint (epoch 3, chosen by validation Macro F1) achieved **0.886558 Micro F1** and **0.791175 Macro F1** on the 142,320-row official test set. Saved evaluation outputs passed local integrity and source-alignment audits; those audits do not cryptographically prove the provenance of the original Kaggle inference weights.
 
-On `api-serving`, the reusable inference engine, FastAPI endpoints, and local HTTP benchmark have been implemented. The benchmark was committed as `073ecc7`. CPU-only Docker deployment was subsequently built and validated with the real checkpoint, a non-root container user, read-only checkpoint mounting, and a reusable API smoke test. The latest reported full quality gate passed **340 tests**, Ruff lint, and formatting. The Docker image size was **1.64 GB**; its earlier version was approximately **1.91 GB**. These Docker changes have not yet been confirmed committed.
+The `api-serving` milestone delivered the reusable inference engine, FastAPI endpoints, HTTP benchmarking, CPU-only Docker packaging, an API smoke test, and GitHub Actions CI. The Docker and CI commits recorded in the project plan are `19497d1` and `3f99725`. Local Docker validation reported **340 passing Python tests** and a **1.64 GB** image; these are historical observations, not a current rerun.
 
-**Next:** finalize and commit Docker and documentation changes; add CI, review/push/merge `api-serving`, and proceed to portfolio release.
+The active `web-application` branch contains the React/TypeScript/Vite UI, functional GitHub-flavored Markdown editor, classification API integration, and frontend tests. The last reported frontend gate passed **19 tests across 3 files**, ESLint, Prettier, and Vite production build. A successful real-checkpoint browser prediction and a subsequent local API test were reported. GitHub Actions CI was implemented for the earlier serving milestone; do not assume frontend validation is covered by that workflow without inspecting `.github/workflows/ci.yml`.
+
+**Next:** update web-application documentation, rerun Python and frontend checks, commit, push, verify CI, and merge into `main`. ONNX export, quantization, browser-side inference, and public static hosting are proposed follow-up work, not completed capabilities.
 
 ## Environment and Conventions
 
@@ -50,7 +52,7 @@ On `api-serving`, the reusable inference engine, FastAPI endpoints, and local HT
 
 ## 2. Dataset Feasibility — Completed
 
-**Notebook:** `notebooks/01_dataset_feasibility.ipynb`  
+**Notebook:** `notebooks/01_dataset_feasibility.ipynb`
 
 **Source:** NLBSE 2023 Issue Report Classification competition; official training and test archives downloaded. Exploration was restricted to the official training data.
 
@@ -90,12 +92,12 @@ On `api-serving`, the reusable inference engine, FastAPI endpoints, and local HT
 - Generated `data/processed/issues_clean.csv` and `data/processed/preparation_report.json`.
 
 | Measure | Result |
-|---|---:
-| Source rows | 1,275,881
-| Prepared rows | 1,221,982
-| Duplicate rows removed | 49,753
+|---|---: |
+| Source rows | 1,275,881 |
+| Prepared rows | 1,221,982 |
+| Duplicate rows removed | 49,753 |
 | Conflicting-label rows removed| 4,146 |
-| Conflicting text groups | 440
+| Conflicting text groups | 440 |
 | Remaining exact title–body duplicates | 0 |
 | Prepared missing titles | 4 |
 | Prepared missing bodies | 4,639 |
@@ -113,7 +115,7 @@ Exact-text cleaning does not resolve semantic label noise, near duplicates, or a
 
 ## 4. Evaluation Protocol — Completed
 
-**Branch:** `evaluation-protocol`  
+**Branch:** `evaluation-protocol`
 
 **Implementation:** `src/data/split.py`, `src/models/evaluation.py`, `src/models/dummy_baseline.py` and corresponding tests.
 
@@ -201,7 +203,7 @@ At 200K, per-class F1: bug `0.849904`, documentation `0.543075`, feature `0.7851
 
 ### 5.2 Body structure EDA — Completed
 
-**Notebook:** `notebooks/02_body_structure_eda.ipynb`  
+**Notebook:** `notebooks/02_body_structure_eda.ipynb`
 
 **Sample:** 50,000 stratified training issues; official test excluded.
 
@@ -225,7 +227,7 @@ A hypothetical 1,000-character truncation would affect 37.55% of bug issues and 
 | Micro F1 | 0.792704 | 0.832186 | +0.039482 |
 | Macro F1 | 0.618379 | 0.676879 | +0.058500 |
 | Weighted F1 | 0.778851 | 0.822626 | +0.043775 |
-| Training time | 17.749 s | 85.633 s | \\~4.82× |
+| Training time | 17.749 s | 85.633 s | ~4.82× |
 
 Raw-body per-class F1: bug `0.884124`, documentation `0.552732`, feature `0.830018`, question `0.440641`. Question recall improved from `0.192015` (title only) to `0.328440` (raw body), but remained low. Full-validation prediction time: `26.965 s`.
 
@@ -244,7 +246,7 @@ The established raw full-body run was compared with character-limited body varia
 
 ### 5.5 Structured preprocessing — Completed and merged
 
-**Branch:** `structured-preprocessing` (merged into `main`, as reported).  
+**Branch:** `structured-preprocessing` (merged into `main`, as reported).
 
 **Files:** `src/preprocessing/structured.py`, `src/models/structured_ablation_experiment.py`, `src/preprocessing/analyze_size.py`, `notebooks/03_structured_text_audit.ipynb`, and focused tests.
 
@@ -267,14 +269,14 @@ Selected E4 configuration:
 
 ```python
 StructuredPreprocessingConfig(
-    remove_html_comments=True,
-    normalize_markdown=True,
-    normalize_urls_paths=True,
-    remove_template_placeholders=True,
-    compress_repeated_blocks=False,
-    replace_fenced_code=True,
-    normalize_whitespace=True,
-    selective_code_compression=False,
+    remove_html_comments=True,
+    normalize_markdown=True,
+    normalize_urls_paths=True,
+    remove_template_placeholders=True,
+    compress_repeated_blocks=False,
+    replace_fenced_code=True,
+    normalize_whitespace=True,
+    selective_code_compression=False,
 )
 ```
 
@@ -291,7 +293,7 @@ E2 removed only 87,111 more characters than E4; E5 retained 1,360,549 more chara
 
 ### 5.6 Materialized `structured_v1` dataset — Completed
 
-**Implementation:** `src/preprocessing/build_dataset.py`; tests: `tests/test_build_dataset.py`.  
+**Implementation:** `src/preprocessing/build_dataset.py`; tests: `tests/test_build_dataset.py`.
 
 **Dependency:** `pyarrow==26.0.1`.
 
@@ -309,9 +311,9 @@ E2 removed only 87,111 more characters than E4; E5 retained 1,360,549 more chara
 
 ```text
 data/processed/structured_v1/
-    ├── train.parquet
-    ├── validation.parquet
-    └── manifest.json
+    ├── train.parquet
+    ├── validation.parquet
+    └── manifest.json
 ```
 
 | Measure | Train | Validation |
@@ -566,6 +568,7 @@ The final-evaluation documentation, including `docs/FINAL_EVALUATION_REPORT.md`,
 ## 8. API Serving — Inference Engine Completed and Committed
 
 **Branch:** `api-serving`
+
 **Commit:** `69fda88` — `feat: add reusable DistilBERT inference engine`
 
 **Files:** `src/api/inference.py`; `tests/test_inference.py`.
@@ -684,11 +687,14 @@ uv run python scripts/benchmark_api.py \
   --output artifacts/benchmarks/api_baseline.json
 ```
 
-## 11. Docker Containerization — Implemented and Validated; Commit Pending
+## 11. Docker Containerization — Implemented, Validated, and Committed
 
-**Branch:** `api-serving`  
-**Validation date:** 2026-11-15 (local container smoke tests; latest full quality gate reported afterward).  
-**Files:** `Dockerfile`, `.dockerignore`, `docker/requirements.txt`, `src/api/inference.py`, `src/data/labels.py`, `src/data/neural_dataset.py`, `src/models/transformer_utils.py`, `src/models/evaluate_transformer.py`, `src/preprocessing/experiment_configs.py`, `src/models/structured_ablation_experiment.py`, `scripts/smoke_test_api.py`, and corresponding tests.  
+**Branch:** `api-serving`
+
+**Validation date:** 2026-11-15 (local container smoke tests; latest full quality gate reported afterward).
+
+**Files:** `Dockerfile`, `.dockerignore`, `docker/requirements.txt`, `src/api/inference.py`, `src/data/labels.py`, `src/data/neural_dataset.py`, `src/models/transformer_utils.py`, `src/models/evaluate_transformer.py`, `src/preprocessing/experiment_configs.py`, `src/models/structured_ablation_experiment.py`, `scripts/smoke_test_api.py`, and corresponding tests.
+
 **Guide:** [`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md).
 
 ### 11.1 Implementation and dependency isolation
@@ -743,38 +749,12 @@ The checkpoint path is machine-specific. Full commands and limitations are in [`
 - The Section 10 benchmark measured the local FastAPI process, not Docker-specific throughput.
 - No production authentication, rate limiting, sustained load test, or independent model-startup benchmark is reported.
 - Docker image size is not runtime RAM consumption; pinned top-level requirements are not a complete dependency lock.
-- **Pending:** review staged changes and create the Docker commit; push and merge the branch only after review.
-
-## 12. Next Steps — CI and Portfolio Release
-
-1. Review documentation and staged Docker changes; commit them on `api-serving`.
-2. Push `api-serving` and open a Pull Request against `main`.
-3. Add GitHub Actions CI for Ruff lint, formatting, and tests that do not require the external checkpoint.
-4. Re-run the quality gate, review CI results, and merge `api-serving` when ready.
-5. Start `portfolio-release`: polish README and reproducibility instructions; produce separate Excalidraw architecture/pipeline diagrams and portfolio narrative.
-
-**Quality commands (in order):**
-
-```bash
-uv run ruff check --fix .
-uv run ruff format .
-uv run ruff check .
-uv run ruff format --check .
-uv run pytest -q
-```
-
-**Git verification:**
-
-```bash
-git branch --show-current
-git status --short
-git diff --check
-git log --oneline -5
-```
+- **Closure:** Docker work was committed as `19497d1` on `api-serving`. Local validation is recorded above; production cloud deployment is not claimed.
 
 ## 12. GitHub Actions CI — Implemented and Validated
 
 **Branch:** `api-serving`
+
 **Commit:** `3f99725` — `ci: add GitHub Actions quality checks`
 
 **Implementation:** `.github/workflows/ci.yml`.
@@ -801,40 +781,111 @@ git log --oneline -5
 The workflow completed successfully on GitHub-hosted infrastructure without requiring the locally stored DistilBERT checkpoint.
 
 ### 12.3 Limitations
-
 - CI validates source quality and automated tests; it does not perform full checkpoint-backed inference.
 - Docker build and deployment are not included in the current CI workflow.
 - Production performance and cloud deployment remain outside the verified scope.
 
 ### 12.4 Closure
-
 - [x] Implement CI workflow.
 - [x] Run CI successfully on GitHub Actions.
-- [ ] Merge `api-serving` into `main`.
+- [x] API-serving work incorporated into the development history used by `web-application` (separate merge evidence should be checked from Git history).
 
-## 13. Next Steps — API Serving Merge and Web Application
+## 13. Web Application — Implemented and Tested; Merge Pending
 
-**Current branch:** `api-serving`  
-**Next planned branch:** `web-application`
+**Branch:** `web-application`  
+**Recorded HEAD (2026-11-17):** `6ad5e02` — `feat: integrate React frontend with classification API`  
+**Status:** Application implementation committed and locally tested. Documentation closure and merge into `main` are pending.
 
-### 13.1 Close API Serving
+### 13.1 Scope and implementation
 
-1. Review and merge `api-serving` into `main`.
-2. Confirm GitHub Actions CI succeeds on the merged `main` branch.
-3. Verify the working tree is clean and the local `main` branch is up to date.
+- Initialized `frontend/` with React, TypeScript, and Vite, using a GitHub-inspired dark issue-creation interface.
+- Built a title/description editor with Write/Preview modes, a Markdown formatting toolbar, and GitHub-flavored Markdown rendering.
+- Connected the browser to `POST /predict` through a typed API client; the backend remains responsible for structured E4 preprocessing, tokenization, and PyTorch DistilBERT inference.
+- Presented returned predicted label, confidence, and all four class probabilities. Probabilities are model outputs, **not calibrated reliability guarantees**.
+- Added client-side validation aligned with the API contract (title at most 500 characters, body at most 20,000 characters, and at least one nonblank field).
+- Implemented loading, failed-request, and successful-result states; request cancellation prevents superseded responses from overwriting newer results.
+- Added backend CORS configuration supporting local Vite development, including private-network browser preflight handling.
+- No GitHub account, repository write access, or issue creation is involved: the application classifies text supplied by the visitor.
 
-### 13.2 Begin Web Application
+**Key paths:** `frontend/src/App.tsx`, `frontend/src/components/layout/`, `frontend/src/features/issue-editor/`, `frontend/src/features/classification/`, `src/api/main.py`, `src/api/inference.py`, and `tests/test_api_cors.py`.
 
-1. Create `web-application` from the updated `main` branch.
-2. Initialize the React, TypeScript, and Vite frontend.
-3. Implement a GitHub-inspired issue creation interface.
-4. Integrate the existing FastAPI `/predict` endpoint.
-5. Display predictions, confidence, and per-class probabilities.
-6. Add validation, loading states, error handling, and responsive styling.
-7. Add frontend tests and end-to-end integration checks.
-8. Configure Docker Compose for frontend and backend deployment.
-9. Validate the complete application using the real DistilBERT checkpoint.
+### 13.2 Validation evidence
 
-### 13.3 Subsequent Stage
+| Check | Last reported observation |
+|---|---|
+| React frontend unit/integration tests | 19 passed across 3 test files |
+| Frontend lint, formatting, TypeScript/Vite production build | Passed |
+| Browser-to-FastAPI integration with real checkpoint | `bug` prediction displayed successfully |
+| FastAPI `/health` (2026-11-17) | `healthy`, `model_loaded: true` |
+| FastAPI `/predict` (2026-11-17) | `bug`, confidence `0.9969459176063538` on a startup-error example |
+| FastAPI process RSS after local inference | 770,180 KiB (~752 MiB), point-in-time observation |
+| Model checkpoint size | Approximately 257 MB on disk |
 
-After the web application is implemented, tested, documented, and merged, proceed to `portfolio-release` for final presentation, architecture diagrams, and release documentation.
+The RSS figure is neither a peak-memory measurement nor a production container benchmark. The last observed 19 frontend tests and real browser prediction are historical reports; the final quality gate must be rerun before merging. Full test metrics belong to the held-out evaluation report, not to this one-input smoke test.
+
+**Recorded application commits:**
+
+- `39b72c9` — initialize React frontend with TypeScript and Vite.
+- `2cfba81` — implement GitHub-inspired dark issue interface.
+- `364e792` and `c5c8538` — implement and refine functional GitHub-flavored Markdown editor (both commit messages have the same title).
+- `6ad5e02` — integrate React frontend with classification API.
+
+### 13.3 Running locally
+
+**Terminal 1 — backend with the local model checkpoint:**
+
+```bash
+cd ~/issue-intent
+ISSUE_INTENT_CHECKPOINT="$HOME/issue-intent-artifacts/models/distilbert/best" \
+  uv run uvicorn src.api.main:app --host 127.0.0.1 --port 8000
+```
+
+**Terminal 2 — frontend:**
+
+```bash
+cd ~/issue-intent/frontend
+npm ci
+cp -n .env.example .env.local
+npm run dev
+```
+
+`VITE_API_BASE_URL` defaults to `http://localhost:8000` in the example environment. Keep the API running while testing the React interface. The trained checkpoint is not distributed with this Git repository.
+
+**Frontend quality gate:**
+
+```bash
+cd ~/issue-intent/frontend
+npm run format
+npm run format:check
+npm run lint
+npm run test
+npm run build
+```
+
+**Backend quality gate:**
+
+```bash
+cd ~/issue-intent
+uv run ruff check --fix .
+uv run ruff format .
+uv run ruff check .
+uv run ruff format --check .
+uv run pytest -q
+```
+
+### 13.4 Remaining closure actions
+
+1. Commit the updated root README, frontend README, progress log, and project plan on `web-application`.
+2. Run both quality gates and inspect `git diff --check`, `git status`, and the final commit history.
+3. Push `web-application`, check applicable GitHub Actions jobs, and merge into `main` only after validation.
+4. Confirm local `main` and remote `main` are synchronized before starting a new branch.
+
+### 13.5 Next proposed milestone — ONNX browser inference
+
+1. Export the frozen DistilBERT checkpoint from PyTorch to FP32 ONNX without retraining.
+2. Compare logits, predicted labels, and performance on representative examples against the existing PyTorch pipeline.
+3. Evaluate INT8 quantization against quality, model size, and latency requirements.
+4. Reproduce structured E4 preprocessing and tokenization in the browser and add parity tests.
+5. If accuracy and runtime are acceptable, integrate ONNX Runtime Web and deploy the React demo to free static hosting.
+
+ONNX export, quantization, browser inference, public deployment, and Docker Compose have **not** been verified as implemented in this milestone. The established FastAPI backend and CPU-only Docker image remain preserved as independent server-inference implementations.

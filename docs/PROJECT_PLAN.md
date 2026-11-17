@@ -1,7 +1,8 @@
 # issue-intent — Project Plan
-**Updated:** 2026-11-16  
 
-**Project:** `issue-intent`  
+**Updated:** 2026-11-17
+
+**Project:** `issue-intent`
 
 **Repository:** `git@github.com:mazen-alasas/issue-intent.git`
 
@@ -26,36 +27,39 @@ The project emphasizes reproducible data preparation, leakage-aware evaluation, 
 | API Serving & Benchmark | `api-serving` | FastAPI, inference tests, local HTTP benchmark | Completed and committed |
 | Docker Deployment | `api-serving` | CPU-only image, external checkpoint mount, smoke tests | Completed and committed (`19497d1`) |
 | GitHub Actions CI | `api-serving` | Automated lint, formatting, and checkpoint-independent tests | Implemented; first run passed (`3f99725`) |
-| Web Application | `web-application` | React/TypeScript/Vite GitHub-inspired issue editor, live inference, integration tests | Planned; next development stage |
-| Portfolio Release | `portfolio-release` | Reproducibility, diagrams, documentation, final release | Planned; after web application |
+| Web Application | `web-application` | React/TypeScript/Vite issue editor, Markdown preview, live inference, frontend tests | Implemented and committed; documentation and merge pending |
+| ONNX Browser Inference | `onnx-browser-inference` (proposed) | ONNX export, parity validation, INT8 assessment, browser inference, static deployment | Planned; after web-application merge |
+| Portfolio Release | `portfolio-release` (proposed) | Reproducibility, diagrams, polished project narrative | Planned |
 
 **Optional:** Similar Issue Retrieval and Cloud Deployment, only if justified by measured needs.
 
-**Branch hygiene:** `final-evaluation` is confirmed merged into `main`. `api-serving` contains the Docker commit `19497d1` and CI commit `3f99725`, pushed to GitHub; CI run #1 passed on 2026-11-16. **A merge of `api-serving` into `main` has not been confirmed.** Do not create `web-application` until `main` is updated and verified. Commit hashes above are recorded evidence, not an exhaustive branch history.
+**Branch hygiene:** The last confirmed local branch is `web-application` at `6ad5e02` with a clean working tree before documentation edits (2026-11-17). Docker commit `19497d1` and CI commit `3f99725` were previously recorded on `api-serving`; earlier notes did not independently verify that branch's merge event. Do not claim `web-application` has merged until the merge is confirmed.
 
-### Next stage: Web Application — Planned
+### Current stage: Web Application — Documentation and Merge Pending
 
-**Branch:** `web-application` (to be created from updated `main` after merging `api-serving`).
+**Goal:** Close the implemented React + FastAPI application milestone without changing the frozen DistilBERT model or evaluation results.
 
-**Goal:** Provide an actual browser-based interface where a user enters a GitHub-style issue and receives a prediction from the existing DistilBERT inference API.
+**Implemented:**
 
-**Frontend:** React, TypeScript, Vite. **Backend:** existing FastAPI `GET /health` and `POST /predict`. **Model:** frozen DistilBERT checkpoint with the established E4 body preprocessing and tokenization.
+1. Responsive GitHub-inspired dark issue editor with title and body inputs.
+2. Write/Preview Markdown editor, formatting toolbar, and GFM rendering.
+3. Validation aligned with backend schema: title ≤500 characters, body ≤20,000 characters, at least one nonblank field.
+4. Four-class prediction display containing the backend label, confidence, and probabilities.
+5. Loading/error states, aborted stale requests, and a typed configurable API client.
+6. CORS support for local browser integration, component/API tests, and real-checkpoint testing.
 
-**Planned deliverables:**
+**Last reported validation:** 19 frontend tests passed in 3 files; ESLint, formatting, and Vite build passed; a real browser-to-API classification succeeded. A subsequent local API call returned `bug` with confidence `0.9969459176063538`. These observations do not replace the final pre-merge test run.
 
-1. Responsive GitHub-inspired New Issue editor with title and description fields.
-2. Markdown authoring and preview, with safe rendering of user-provided content.
-3. Client-side validation consistent with backend request limits (title up to 500 characters; body up to 20,000; at least one nonblank field).
-4. Prediction panel showing the returned class, confidence, and four class probabilities without inventing scores or implying confidence is calibrated.
-5. Loading, request failure, unavailable-model, and empty-input states.
-6. Typed API client, configurable backend URL, and a local development workflow.
-7. Frontend component/API-mocking tests and end-to-end verification against the real local checkpoint.
-8. Docker Compose setup for frontend and backend, with the checkpoint mounted externally and read-only; verify routing and browser-to-API connectivity.
-9. Document setup, runtime requirements, limitations, and verified test results.
+**Not implemented in this stage:** hosted public link, ONNX inference, model quantization, Docker Compose, or end-to-end browser automation against a deployed server. GitHub Actions CI exists for earlier Python code; confirm whether frontend jobs are configured before claiming frontend CI coverage.
 
-**Scope boundary:** The first release classifies issues entered in the UI; it does not create GitHub issues, require GitHub credentials, or write to external repositories.
+**Closure checklist:**
 
-**Exit criteria:** A user can open the web application, enter an issue, submit it, and see the real four-class DistilBERT response; the UI and backend run together with documented setup and passing tests. Only then begin `portfolio-release`.
+1. Update the root and frontend READMEs and the progress/plan documents.
+2. Run the Python and frontend quality gates, check diffs, and commit documentation on `web-application`.
+3. Push the branch, inspect GitHub Actions results, and merge to `main` after verification.
+4. Start ONNX export and browser-inference assessment from the refreshed `main` in a separate branch.
+
+**Next milestone — ONNX browser inference:** Export the selected DistilBERT checkpoint to FP32 ONNX, verify parity, benchmark and consider INT8 quantization, port E4 preprocessing and tokenization with parity tests, and evaluate a free static-hosting demo while retaining FastAPI and Docker serving paths.
 
 ## 3. Engineering Principles
 - Python 3.11, `uv` for environment/dependencies, and a flat `src/` structure.
@@ -131,7 +135,7 @@ Prepared label counts: bug `648,270`; feature `444,745`; question `74,474`; docu
 - `split_report.json` records row counts, class distributions, and SHA-256 source/output hashes.
 - `dummy_baseline_metrics.json` records the majority-class reference.
 
-**Train CSV SHA-256:** `41d703815435c2018a93bb9021e69083ce49ebe9b699ecb1aff03f0f7500055d`  
+**Train CSV SHA-256:** `41d703815435c2018a93bb9021e69083ce49ebe9b699ecb1aff03f0f7500055d`
 
 **Validation CSV SHA-256:** `7946749613bda611b96cb4871aaa38045195fa980744b1112fa2f9f9bd2f9b23`
 
@@ -155,6 +159,7 @@ Initial independent-sample LinearSVC results: Micro F1 `0.766850` at 50K and `0.
 **Finding:** Body text substantially improves classification relative to title alone, particularly `question`, but minority-class recall remains a concern. The best truncation choice is not obvious from character length alone. Full-body training at 200K was materially slower than title-only training.
 
 ### 5.4 Structured preprocessing and ablations
+
 **Implemented:** `src/preprocessing/structured.py`, `src/models/structured_ablation_experiment.py`, `src/preprocessing/analyze_size.py`, `notebooks/03_structured_text_audit.ipynb`, and tests.
 
 All controlled structured comparisons use 200K training issues and the same full validation split. Preprocessing changes the **body only**.
@@ -183,14 +188,14 @@ The chosen E4 configuration is:
 
 ```python
 StructuredPreprocessingConfig(
-    remove_html_comments=True,
-    normalize_markdown=True,
-    normalize_urls_paths=True,
-    remove_template_placeholders=True,
-    compress_repeated_blocks=False,
-    replace_fenced_code=True,
-    normalize_whitespace=True,
-    selective_code_compression=False,
+    remove_html_comments=True,
+    normalize_markdown=True,
+    normalize_urls_paths=True,
+    remove_template_placeholders=True,
+    compress_repeated_blocks=False,
+    replace_fenced_code=True,
+    normalize_whitespace=True,
+    selective_code_compression=False,
 )
 ```
 
@@ -265,10 +270,11 @@ Post-build SHA-256, row count, and schema verification passed for both files. Th
 - Clearly separate competition benchmark numbers from project-measured results.
 
 ### API Serving, Web Application, and Portfolio
-
 - `api-serving`: FastAPI endpoints, request validation, benchmark, CPU-only Docker image, smoke tests, and GitHub Actions CI implemented. Docker commit `19497d1`; CI commit `3f99725`; first CI run passed. Merge into `main` remains unconfirmed.
-- `web-application`: next planned branch for the React/TypeScript/Vite interface, live prediction integration, frontend tests, and Docker Compose.
-- `portfolio-release`: after web application completion, finalize reproducibility, limitations, documentation, and separate Excalidraw architecture/data-flow diagrams.
+- `web-application`: implemented React/TypeScript/Vite interface, functional GFM editor, live prediction integration, and frontend tests; documentation closure and merge pending. Docker Compose not confirmed implemented.
+- `onnx-browser-inference` (proposed): FP32 export, parity checks, INT8 evaluation, browser inference, and static-hosting feasibility.
+- `portfolio-release`: finalize reproducibility, limitations, documentation, and separate Excalidraw architecture/data-flow diagrams after the selected demo strategy is validated.
+
 - Keep deployment claims limited to environments actually tested; do not imply public hosting or production readiness.
 
 ## 8. Risks and Decision Rules
@@ -285,29 +291,33 @@ Post-build SHA-256, row count, and schema verification passed for both files. Th
 ## 9. Relevant Paths
 | Purpose | Path|
 |---|---|
-| Data preparation | `src/data/prepare.py`
-| Train/validation split | `src/data/split.py`
-| Stratified sampling | `src/data/sampling.py`
-| Metrics | `src/models/evaluation.py`
-| Majority baseline | `src/models/dummy_baseline.py`
-| Classical title-only models | `src/models/train_classical.py`
-| Learning curve | `src/models/learning_curve.py`
-| Title + body baseline | `src/models/train_title_body.py`
-| Structured transformations | `src/preprocessing/structured.py`
-| Structured ablations | `src/models/structured_ablation_experiment.py`
-| Input size analysis | `src/preprocessing/analyze_size.py`
-| Versioned Parquet builder | `src/preprocessing/build_dataset.py`
-| Prepared CSVs | `data/processed/train.csv`, `data/processed/validation.csv`
-| Versioned dataset | `data/processed/structured_v1/`
-| Dataset provenance | `data/processed/structured_v1/manifest.json`
+| Data preparation | `src/data/prepare.py` |
+| Train/validation split | `src/data/split.py` |
+| Stratified sampling | `src/data/sampling.py` |
+| Metrics | `src/models/evaluation.py` |
+| Majority baseline | `src/models/dummy_baseline.py` |
+| Classical title-only models | `src/models/train_classical.py` |
+| Learning curve | `src/models/learning_curve.py` |
+| Title + body baseline | `src/models/train_title_body.py` |
+| Structured transformations | `src/preprocessing/structured.py` |
+| Structured ablations | `src/models/structured_ablation_experiment.py` |
+| Input size analysis | `src/preprocessing/analyze_size.py` |
+| Versioned Parquet builder | `src/preprocessing/build_dataset.py` |
+| Prepared CSVs | `data/processed/train.csv`, `data/processed/validation.csv` |
+| Versioned dataset | `data/processed/structured_v1/` |
+| Dataset provenance | `data/processed/structured_v1/manifest.json` |
 | Progress log | `docs/PROGRESS.md` |
 | API inference | `src/api/inference.py`, `src/api/main.py` |
 | API benchmark | `scripts/benchmark_api.py` |
 | Docker packaging | `Dockerfile`, `docker/requirements.txt`, `.dockerignore` |
 | API smoke test | `scripts/smoke_test_api.py` |
 | GitHub Actions CI | `.github/workflows/ci.yml` |
-| Planned web frontend | `frontend/` (proposed; not created yet) |
-| Docker guide | `docs/DOCKER_DEPLOYMENT.md`
+| Web frontend | `frontend/` (React + TypeScript + Vite) |
+| Web editor | `frontend/src/features/issue-editor/` |
+| Classification UI and client | `frontend/src/features/classification/` |
+| Frontend application | `frontend/src/App.tsx` |
+| API CORS tests | `tests/test_api_cors.py` |
+| Docker guide | `docs/DOCKER_DEPLOYMENT.md` |
 | Roadmap and policies | `docs/PROJECT_PLAN.md` |
 
 ## 10. Commands for Stage Transitions
@@ -328,7 +338,7 @@ uv run pytest -q
 # uv run python -m src.preprocessing.build_dataset
 ```
 
-Historical note: full-scale classical training and E0–E5 ablations are complete. FastAPI, Docker, and the first CI run are also complete. The next milestone is merging `api-serving`, then building the browser-based web application before portfolio release.
+Historical note: full-scale classical training and E0–E5 ablations are complete. FastAPI, Docker, and the first CI run are complete. The web application is now implemented; documentation closure and merge are pending. ONNX browser inference is the proposed next technical milestone.
 
 ## Full-scale classical baselines — November 2026
 Dataset: structured_v1 (E4, body-only preprocessing).
@@ -368,13 +378,11 @@ The official test split was held out throughout classical and neural model selec
 DistilBERT checkpoint selection used validation **Macro F1**; the overall reporting protocol uses **Micro F1** as primary. The official-test results were audited against saved predictions and processed source data; this does not independently prove the exact weights used for the original Kaggle inference.
 
 ### 11.2 Completed stage and branch evidence
-
 - `transformer-finetuning`: implementation commit `6986b78`; detailed results in [`TRANSFORMER_EXPERIMENT.md`](TRANSFORMER_EXPERIMENT.md).
 - `final-evaluation`: completed and merged into `main` (confirmed base `09672bf`); see [`FINAL_EVALUATION_REPORT.md`](FINAL_EVALUATION_REPORT.md) and [`MODEL_CARD.md`](MODEL_CARD.md).
 - `api-serving`: inference `69fda88`, FastAPI `752dc87`, benchmark `073ecc7`, Docker `19497d1`, CI `3f99725`. Docker and CI commits were pushed to GitHub; merge into `main` has not been confirmed.
 
 ### 11.3 API, Docker, and CI validation
-
 - Endpoints: `GET /health`, `POST /predict`; model loaded at FastAPI startup.
 - Docker: `python:3.11-slim`, CPU-only PyTorch, non-root `appuser`, read-only external checkpoint mount.
 - Docker runtime excludes pandas, PyArrow, and scikit-learn.
@@ -385,14 +393,12 @@ DistilBERT checkpoint selection used validation **Macro F1**; the overall report
 - Local CPU HTTP benchmark observations are in [`PROGRESS.md`](PROGRESS.md), Section 10; they are not Docker load-test results.
 - Full Docker instructions: [`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md).
 
-### 11.4 Next steps — Web Application before Portfolio Release
+### 11.4 Current closure and next milestones — 2026-11-17
 
-1. Review and merge `api-serving` into `main` after confirming the latest CI checks pass.
-2. Verify the CI workflow on merged `main` and update the local branch.
-3. Create `web-application` from updated `main`.
-4. Implement the GitHub-inspired React/TypeScript/Vite issue editor and integrate the existing FastAPI `/predict` endpoint.
-5. Add Markdown preview, prediction details, validation, loading/error states, and responsive UI.
-6. Add frontend tests, Docker Compose, and end-to-end verification with the real checkpoint.
-7. Document and merge the completed web application; only then begin `portfolio-release`.
+1. Finish documentation for React, TypeScript, Vite, functional Markdown editing, API integration, and CORS handling.
+2. Rerun Ruff, formatting, pytest, frontend formatting, ESLint, Vitest, and Vite build.
+3. Commit on `web-application`, push, verify available CI checks, and merge to `main` after validation.
+4. Start `onnx-browser-inference` from the refreshed `main`: FP32 export, output parity, quantization experiments, browser preprocessing/tokenizer parity, and static-hosting feasibility.
+5. After the deployment strategy is verified, finalize portfolio documentation and separate architecture/pipeline diagrams.
 
-**Do not mark the `api-serving` merge, web application, or portfolio release completed until confirmed.**
+**Do not mark the web application merged, ONNX export completed, or public hosting deployed until those events are verified.**
