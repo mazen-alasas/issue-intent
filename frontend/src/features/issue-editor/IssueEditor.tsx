@@ -9,9 +9,11 @@ import {
   List,
   ListOrdered,
   Maximize2,
+  Minimize2,
   Strikethrough,
 } from 'lucide-react'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
+import { MarkdownPreview } from './MarkdownPreview'
 
 type Props = {
   title: string
@@ -20,6 +22,8 @@ type Props = {
   onBodyChange: (value: string) => void
   onDemo: () => void
 }
+
+type EditorTab = 'write' | 'preview'
 
 const toolbar = [
   { name: 'Heading', Icon: Heading },
@@ -32,96 +36,200 @@ const toolbar = [
   { name: 'Numbered list', Icon: ListOrdered },
   { name: 'Task list', Icon: CheckSquare },
   { name: 'Mention', Icon: AtSign },
-  { name: 'Expand', Icon: Maximize2 },
 ]
 
 export function IssueEditor({ title, body, onTitleChange, onBodyChange, onDemo }: Props) {
+  const [activeTab, setActiveTab] = useState<EditorTab>('write')
+  const [expanded, setExpanded] = useState(false)
   const bodyRef = useRef<HTMLTextAreaElement>(null)
-  function insertMarkdown(name: string) {
-    const el = bodyRef.current
-    if (!el) return
-    const start = el.selectionStart
-    const end = el.selectionEnd
-    const selected = body.slice(start, end)
-    const wrappers: Record<string, [string, string]> = {
-      Heading: ['### ', ''],
-      Bold: ['**', '**'],
-      Italic: ['*', '*'],
-      Strikethrough: ['~~', '~~'],
-      Code: ['`', '`'],
-      Link: ['[', '](https://example.com)'],
-      'Bulleted list': ['- ', ''],
-      'Numbered list': ['1. ', ''],
-      'Task list': ['- [ ] ', ''],
-      Mention: ['@', ''],
+
+  function switchTab(tab: EditorTab) {
+    setActiveTab(tab)
+
+    if (tab === 'write') {
+      requestAnimationFrame(() => bodyRef.current?.focus())
     }
-    if (name === 'Expand') {
-      el.focus()
+  }
+
+  function insertMarkdown(name: string) {
+    const element = bodyRef.current
+    if (!element || activeTab !== 'write') return
+
+    const start = element.selectionStart
+    const end = element.selectionEnd
+    const selected = body.slice(start, end)
+
+    const wrappers: Record<string, [string, string, string]> = {
+      Bold: ['**', '**', 'bold text'],
+      Italic: ['*', '*', 'italic text'],
+      Strikethrough: ['~~', '~~', 'strikethrough text'],
+      Code: ['`', '`', 'code'],
+      Link: ['[', '](https://example.com)', 'link text'],
+      Mention: ['@', '', 'username'],
+    }
+
+    if (name in wrappers) {
+      const [prefix, suffix, placeholder] = wrappers[name]
+      const content = selected || placeholder
+
+      const replacement = prefix + content + suffix
+
+      onBodyChange(body.slice(0, start) + replacement + body.slice(end))
+
+      requestAnimationFrame(() => {
+        element.focus()
+        element.setSelectionRange(start + prefix.length, start + prefix.length + content.length)
+      })
+
+      return
+    } else if (
+      name === 'Heading' ||
+      name === 'Bulleted list' ||
+      name === 'Numbered list' ||
+      name === 'Task list'
+    ) {
+      // Line-based formatting should operate on complete lines.
+      const lineStart = body.lastIndexOf('\n', start - 1) + 1
+      const lineEndIndex = body.indexOf('\n', end)
+      const lineEnd = lineEndIndex === -1 ? body.length : lineEndIndex
+      const block = body.slice(lineStart, lineEnd)
+      const lines = block.split('\n')
+
+      const formatted = lines.map((line, index) => {
+        if (name === 'Heading') return `### ${line}`
+        if (name === 'Bulleted list') return `- ${line}`
+        if (name === 'Task list') return `- [ ] ${line}`
+        return `${index + 1}. ${line}`
+      })
+
+      const updatedBlock = formatted.join('\n')
+
+      onBodyChange(body.slice(0, lineStart) + updatedBlock + body.slice(lineEnd))
+
+      requestAnimationFrame(() => {
+        element.focus()
+        element.setSelectionRange(lineStart, lineStart + updatedBlock.length)
+      })
+
+      return
+    } else {
       return
     }
-    const [before, after] = wrappers[name]
-    const replacement = before + (selected || 'text') + after
-    onBodyChange(body.slice(0, start) + replacement + body.slice(end))
-    requestAnimationFrame(() => {
-      el.focus()
-      el.setSelectionRange(start + before.length, start + replacement.length - after.length)
-    })
   }
 
   return (
-    <section className="issue-card" aria-labelledby="issue-title">
+    <section
+      className={`issue-card ${expanded ? 'issue-card-expanded' : ''}`}
+      aria-labelledby="issue-editor-heading"
+    >
+      <h2 id="issue-editor-heading" className="visually-hidden">
+        Issue editor
+      </h2>
+
       <label className="field-label" htmlFor="issue-title">
         Title <span className="required">*</span>
       </label>
+
       <input
         id="issue-title"
         className="title-input"
         value={title}
-        onChange={(e) => onTitleChange(e.target.value)}
+        onChange={(event) => onTitleChange(event.target.value)}
         placeholder="Title"
         maxLength={300}
+        required
       />
+
       <label className="field-label description-label" htmlFor="issue-description">
         Description
       </label>
+
       <div className="markdown-box">
         <div className="editor-toolbar">
-          <div className="editor-tabs">
-            <span className="editor-tab selected">Write</span>
-            <span
-              className="editor-tab inactive"
-              title="Markdown preview is coming in the next stage"
+          <div className="editor-tabs" role="tablist" aria-label="Editor mode">
+            <button
+              type="button"
+              role="tab"
+              id="write-tab"
+              aria-selected={activeTab === 'write'}
+              aria-controls="write-panel"
+              className={`editor-tab ${activeTab === 'write' ? 'selected' : 'inactive'}`}
+              onClick={() => switchTab('write')}
+            >
+              Write
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              id="preview-tab"
+              aria-selected={activeTab === 'preview'}
+              aria-controls="preview-panel"
+              className={`editor-tab ${activeTab === 'preview' ? 'selected' : 'inactive'}`}
+              onClick={() => switchTab('preview')}
             >
               Preview
-            </span>
+            </button>
           </div>
+
           <div className="format-tools" aria-label="Markdown formatting tools">
-            {toolbar.map(({ name, Icon }, i) => (
-              <button
-                key={name}
-                type="button"
-                className={`tool-button ${i === 6 || i === 9 ? 'tool-divider' : ''}`}
-                title={name}
-                aria-label={name}
-                onClick={() => insertMarkdown(name)}
-              >
-                <Icon size={17} />
-              </button>
-            ))}
+            {activeTab === 'write' &&
+              toolbar.map(({ name, Icon }, index) => (
+                <button
+                  key={name}
+                  type="button"
+                  className={`tool-button ${index === 6 || index === 9 ? 'tool-divider' : ''}`}
+                  title={name}
+                  aria-label={name}
+                  onClick={() => insertMarkdown(name)}
+                >
+                  <Icon size={17} />
+                </button>
+              ))}
+
+            <button
+              type="button"
+              className="tool-button expand-button"
+              aria-label={expanded ? 'Collapse editor' : 'Expand editor'}
+              title={expanded ? 'Collapse editor' : 'Expand editor'}
+              aria-pressed={expanded}
+              onClick={() => setExpanded((value) => !value)}
+            >
+              {expanded ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
+            </button>
           </div>
         </div>
-        <textarea
-          ref={bodyRef}
-          id="issue-description"
-          className="description-input"
-          value={body}
-          onChange={(e) => onBodyChange(e.target.value)}
-          spellCheck={false}
-          aria-label="Issue description in Markdown"
-        />
+
+        <div
+          id="write-panel"
+          role="tabpanel"
+          aria-labelledby="write-tab"
+          hidden={activeTab !== 'write'}
+        >
+          <textarea
+            ref={bodyRef}
+            id="issue-description"
+            className="description-input"
+            value={body}
+            onChange={(event) => onBodyChange(event.target.value)}
+            spellCheck={false}
+            aria-label="Issue description in Markdown"
+          />
+        </div>
+
+        <div
+          id="preview-panel"
+          role="tabpanel"
+          aria-labelledby="preview-tab"
+          hidden={activeTab !== 'preview'}
+        >
+          {activeTab === 'preview' && <MarkdownPreview content={body} />}
+        </div>
       </div>
+
       <div className="editor-actions">
         <span className="prototype-note">UI preview · Classification API not connected yet</span>
+
         <button
           className="analyze-button"
           type="button"
