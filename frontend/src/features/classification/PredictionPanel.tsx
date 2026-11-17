@@ -1,71 +1,146 @@
-import { Bug, Cpu, Info } from 'lucide-react'
+import { BookOpen, Bug, CircleHelp, Cpu, Info, Lightbulb, LoaderCircle } from 'lucide-react'
+import type { IssueLabel, PredictResponse } from './api'
 
-type Props = { showExample: boolean }
+type AnalysisState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; result: PredictResponse }
+  | { status: 'error'; message: string }
+
+type Props = {
+  analysis: AnalysisState
+}
+
 const classes = [
-  { label: 'Bug', percent: 88.7, color: '#f85149' },
-  { label: 'Feature', percent: 6.8, color: '#a371f7' },
-  { label: 'Question', percent: 3.2, color: '#f2cc60' },
-  { label: 'Documentation', percent: 1.3, color: '#388bfd' },
-]
+  { key: 'bug', label: 'Bug', color: '#f85149' },
+  { key: 'feature', label: 'Feature', color: '#a371f7' },
+  { key: 'question', label: 'Question', color: '#f2cc60' },
+  { key: 'documentation', label: 'Documentation', color: '#388bfd' },
+] as const
 
-export function PredictionPanel({ showExample }: Props) {
+const labelNames: Record<IssueLabel, string> = {
+  bug: 'Bug',
+  feature: 'Feature',
+  question: 'Question',
+  documentation: 'Documentation',
+}
+
+const icons = {
+  bug: Bug,
+  feature: Lightbulb,
+  question: CircleHelp,
+  documentation: BookOpen,
+}
+
+function PredictionResult({ result }: { result: PredictResponse }) {
+  const Icon = icons[result.label]
+
+  return (
+    <div className="analysis-content">
+      <div className="muted-label">Predicted category</div>
+
+      <div className="prediction-summary">
+        <div className="prediction-identity">
+          <div className="bug-icon">
+            <Icon size={26} />
+          </div>
+
+          <strong>{labelNames[result.label]}</strong>
+        </div>
+
+        <div className="confidence">
+          <strong>{(result.confidence * 100).toFixed(1)}%</strong>
+          <span>model confidence</span>
+        </div>
+      </div>
+
+      <div className="analysis-divider" />
+
+      <div className="probability-heading">Class probabilities</div>
+
+      <div className="probabilities">
+        {classes.map((item) => {
+          const percent = result.probabilities[item.key] * 100
+
+          return (
+            <div className="probability-row" key={item.key}>
+              <span className="probability-label">{item.label}</span>
+
+              <div
+                className="probability-track"
+                role="progressbar"
+                aria-label={`${item.label} probability`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={percent}
+              >
+                <div
+                  className="probability-fill"
+                  style={{
+                    width: `${percent}%`,
+                    backgroundColor: item.color,
+                  }}
+                />
+              </div>
+
+              <span className="probability-value">{percent.toFixed(1)}%</span>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="analysis-notice">
+        <Info size={18} />
+        <span>Model predictions are estimates and should be reviewed before labeling.</span>
+      </div>
+
+      <div className="analysis-divider footer-divider" />
+
+      <div className="analysis-footer">
+        <span>
+          <Cpu size={17} /> Powered by DistilBERT
+        </span>
+        <span className="version-tag">Live inference</span>
+      </div>
+    </div>
+  )
+}
+
+export function PredictionPanel({ analysis }: Props) {
   return (
     <aside className="analysis-card" aria-label="AI Issue Analysis">
       <div className="analysis-header">
         <h2>AI Issue Analysis</h2>
-        <Info size={18} aria-label="Demo preview" />
+        <Info size={18} aria-hidden="true" />
       </div>
-      {showExample ? (
-        <div className="analysis-content">
-          <div className="demo-tag">Illustrative result — not model output</div>
-          <div className="muted-label">Predicted category</div>
-          <div className="prediction-summary">
-            <div className="prediction-identity">
-              <div className="bug-icon">
-                <Bug size={26} />
-              </div>
-              <strong>Bug</strong>
-            </div>
-            <div className="confidence">
-              <strong>88.7%</strong>
-              <span>confidence</span>
-            </div>
-          </div>
-          <div className="analysis-divider" />
-          <div className="probability-heading">Class probabilities</div>
-          <div className="probabilities">
-            {classes.map((item) => (
-              <div className="probability-row" key={item.label}>
-                <span className="probability-label">{item.label}</span>
-                <div className="probability-track">
-                  <div
-                    className="probability-fill"
-                    style={{ width: `${item.percent}%`, backgroundColor: item.color }}
-                  />
-                </div>
-                <span className="probability-value">{item.percent.toFixed(1)}%</span>
-              </div>
-            ))}
-          </div>
-          <div className="analysis-notice">
-            <Info size={18} />
-            <span>AI-generated predictions should be reviewed before labeling.</span>
-          </div>
-          <div className="analysis-divider footer-divider" />
-          <div className="analysis-footer">
-            <span>
-              <Cpu size={17} /> Powered by DistilBERT
-            </span>
-            <span className="version-tag">UI preview</span>
-          </div>
-        </div>
+
+      {analysis.status === 'success' ? (
+        <PredictionResult result={analysis.result} />
       ) : (
-        <div className="analysis-content analysis-empty">
-          <p>Issue edited. Previous demo result cleared.</p>
-          <p>
-            Use <strong>Show demo analysis</strong> to preview the layout. Live classification will
-            be enabled when the API is connected.
-          </p>
+        <div className="analysis-content analysis-empty" aria-live="polite">
+          {analysis.status === 'idle' && (
+            <>
+              <p>Ready to classify your issue.</p>
+              <p>
+                Enter a title or description, then select <strong>Analyze issue</strong>.
+              </p>
+            </>
+          )}
+
+          {analysis.status === 'loading' && (
+            <div className="analysis-loading" role="status">
+              <LoaderCircle size={20} className="loading-spinner" />
+              <span>Analyzing issue with DistilBERT...</span>
+            </div>
+          )}
+
+          {analysis.status === 'error' && (
+            <div role="alert" className="analysis-error">
+              <strong>Analysis failed</strong>
+              <p>{analysis.message}</p>
+              <p>You can retry using the Analyze issue button.</p>
+            </div>
+          )}
         </div>
       )}
     </aside>

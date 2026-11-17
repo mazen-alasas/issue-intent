@@ -728,3 +728,47 @@ kbd {
     min-height: 450px;
   }
 }
+
+.analyze-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.analysis-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #c9d1d9;
+}
+
+.loading-spinner {
+  animation: issue-spin 1s linear infinite;
+}
+
+@keyframes issue-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.analysis-error {
+  border: 1px solid #f85149;
+  border-radius: 7px;
+  padding: 14px;
+  background: #2b1519;
+  color: #f0b6b3;
+}
+
+.analysis-error strong {
+  color: #ff7b72;
+}
+
+.analysis-error p {
+  margin: 8px 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-spinner {
+    animation: none;
+  }
+}

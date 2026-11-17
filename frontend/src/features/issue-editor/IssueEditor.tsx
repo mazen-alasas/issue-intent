@@ -21,6 +21,7 @@ type Props = {
   onTitleChange: (value: string) => void
   onBodyChange: (value: string) => void
   onDemo: () => void
+  isLoading?: boolean
 }
 
 type EditorTab = 'write' | 'preview'
@@ -38,7 +39,14 @@ const toolbar = [
   { name: 'Mention', Icon: AtSign },
 ]
 
-export function IssueEditor({ title, body, onTitleChange, onBodyChange, onDemo }: Props) {
+export function IssueEditor({
+  title,
+  body,
+  onTitleChange,
+  onBodyChange,
+  onDemo,
+  isLoading = false,
+}: Props) {
   const [activeTab, setActiveTab] = useState<EditorTab>('write')
   const [expanded, setExpanded] = useState(false)
   const bodyRef = useRef<HTMLTextAreaElement>(null)
@@ -136,7 +144,7 @@ export function IssueEditor({ title, body, onTitleChange, onBodyChange, onDemo }
         value={title}
         onChange={(event) => onTitleChange(event.target.value)}
         placeholder="Title"
-        maxLength={300}
+        maxLength={500}
         required
       />
 
@@ -228,16 +236,24 @@ export function IssueEditor({ title, body, onTitleChange, onBodyChange, onDemo }
       </div>
 
       <div className="editor-actions">
-        <span className="prototype-note">UI preview · Classification API not connected yet</span>
+        <span className="prototype-note">
+          {body.length > 20_000
+            ? `Description exceeds the 20,000-character limit (${body.length.toLocaleString()}).`
+            : `${body.length.toLocaleString()} / 20,000 description characters`}
+        </span>
 
         <button
           className="analyze-button"
           type="button"
           onClick={onDemo}
-          disabled={!title.trim()}
-          title="Show illustrative prediction only"
+          disabled={
+            isLoading ||
+            (!title.trim() && !body.trim()) ||
+            body.length > 20_000 ||
+            title.length > 500
+          }
         >
-          ✧ <span>Show demo analysis</span>
+          <span>{isLoading ? 'Analyzing...' : 'Analyze issue'}</span>
         </button>
       </div>
     </section>

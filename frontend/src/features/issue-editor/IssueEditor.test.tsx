@@ -34,7 +34,7 @@ describe('IssueEditor', () => {
     const user = userEvent.setup()
     render(<TestEditor />)
 
-    const button = screen.getByRole('button', { name: /show demo analysis/i })
+    const button = screen.getByRole('button', { name: /Analyze issue/i })
 
     expect(button).toBeDisabled()
 
