@@ -1,122 +1,46 @@
 import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { Header } from './components/layout/Header'
+import { RepositoryNav } from './components/layout/RepositoryNav'
+import { IssueEditor } from './features/issue-editor/IssueEditor'
+import { PredictionPanel } from './features/classification/PredictionPanel'
 import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [title, setTitle] = useState('Application crashes on startup')
+  const [body, setBody] = useState(
+    'After updating the application to version **v2.3.0**, it crashes immediately on startup.\n\nA **RuntimeError** is raised during the initialization phase related to the configuration loader.\n\n### Steps to reproduce\n1. Update to version `v2.3.0`.\n2. Run the application using `python app.py`.\n3. Observe that it crashes during startup.\n\n### Error log\n```text\nRuntimeError: Failed to load configuration file: config.yaml\n  File "app.py", line 42, in <module>\n    app = create_app()\n  File "app/core/init.py", line 18, in create_app\n    raise RuntimeError("Failed to load configuration file: config.yaml")\n```',
+  )
+  const [showExample, setShowExample] = useState(true)
+
+  function updateTitle(value: string) {
+    setTitle(value)
+    setShowExample(false)
+  }
+  function updateBody(value: string) {
+    setBody(value)
+    setShowExample(false)
+  }
+  function showSample() {
+    setShowExample(true)
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="app-shell">
+      <Header />
+      <RepositoryNav />
+      <main className="page-content">
+        <h1 className="page-title">New issue</h1>
+        <div className="workspace">
+          <IssueEditor
+            title={title}
+            body={body}
+            onTitleChange={updateTitle}
+            onBodyChange={updateBody}
+            onDemo={showSample}
+          />
+          <PredictionPanel showExample={showExample} />
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      </main>
+    </div>
   )
 }
-
-export default App
