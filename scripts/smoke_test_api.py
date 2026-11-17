@@ -1,5 +1,3 @@
-"""Smoke test for a running Issue Intent API."""
-
 import argparse
 import json
 import urllib.error
