@@ -5,9 +5,9 @@ from pathlib import Path
 
 import numpy as np
 import onnxruntime as ort
-from transformers import AutoTokenizer
 
-from src.api.inference import (
+from src.api.raw_tokenizer import load_onnx_tokenizer
+from src.api.shared import (
     LABEL_NAMES,
     Prediction,
     resolve_checkpoint_path,
@@ -48,9 +48,7 @@ class OnnxIssueClassifier:
             max_length=256, title_budget=48
         )
         self.preprocessing_config = EXPERIMENTS["E4"]
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            self.checkpoint, use_fast=True, local_files_only=True
-        )
+        self.tokenizer = load_onnx_tokenizer(self.checkpoint)
         options = ort.SessionOptions()
         options.intra_op_num_threads = threads
         options.inter_op_num_threads = 1

@@ -5,12 +5,12 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.inference import IssueClassifier
 from src.api.schemas import (
     HealthResponse,
     PredictRequest,
     PredictResponse,
 )
+from src.api.shared import Classifier
 
 
 def create_app(classifier_factory=None) -> FastAPI:
@@ -19,6 +19,8 @@ def create_app(classifier_factory=None) -> FastAPI:
     if classifier_factory is None:
         backend = os.environ.get("ISSUE_INTENT_BACKEND", "pytorch").lower()
         if backend == "pytorch":
+            from src.api.inference import IssueClassifier
+
             classifier_factory = IssueClassifier
         elif backend == "onnx-int8":
             from src.api.onnx_inference import OnnxIssueClassifier
@@ -60,7 +62,7 @@ def create_app(classifier_factory=None) -> FastAPI:
         allow_private_network=True,
     )
 
-    def get_classifier(request: Request) -> IssueClassifier:
+    def get_classifier(request: Request) -> Classifier:
         classifier = getattr(
             request.app.state,
             "classifier",
@@ -76,7 +78,7 @@ def create_app(classifier_factory=None) -> FastAPI:
         return classifier
 
     ClassifierDependency = Annotated[
-        IssueClassifier,
+        Classifier,
         Depends(get_classifier),
     ]
 

@@ -42,8 +42,8 @@ def make_classifier(tmp_path, monkeypatch):
     graph.write_bytes(b"test")
     session = FakeSession(np.array([[4, 1, 0, -1]], dtype=np.float32))
     monkeypatch.setattr(
-        onnx_inference.AutoTokenizer,
-        "from_pretrained",
+        onnx_inference,
+        "load_onnx_tokenizer",
         lambda *args, **kwargs: FakeTokenizer(),
     )
     monkeypatch.setattr(

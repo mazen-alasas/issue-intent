@@ -8,11 +8,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Transitional CPU image: shared inference imports still require PyTorch.
-RUN python -m pip install --no-cache-dir \
-    torch==2.6.0 \
-    --index-url https://download.pytorch.org/whl/cpu
-
 COPY docker/requirements.txt /tmp/requirements.txt
 RUN python -m pip install --no-cache-dir -r /tmp/requirements.txt
 

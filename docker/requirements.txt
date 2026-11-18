@@ -1,11 +1,10 @@
-# FastAPI serving dependencies
+# HTTP API
 fastapi==0.163.0
 uvicorn==0.54.0
 
-# Shared tokenizer and legacy PyTorch inference imports
-transformers==5.22.2
-safetensors==0.8.0
-numpy>=1.26,<3
+# Load the exact saved tokenizer.json without Transformers or PyTorch
+tokenizers>=0.22,<1
 
-# CPU execution of the quantized ONNX graph
+# Quantized CPU inference
+numpy>=1.26,<3
 onnxruntime==1.23.2

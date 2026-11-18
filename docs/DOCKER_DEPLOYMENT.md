@@ -2,14 +2,14 @@
 
 ## Scope
 
-This image defaults to ONNX Runtime **CPU** with the selected INT8 DistilBERT graph. It is a transitional image: CPU-only PyTorch remains installed because `src.api.onnx_inference` currently imports shared objects from `src.api.inference`, which imports PyTorch. Removing PyTorch requires a separate shared-code refactor and regression testing. No CUDA runtime is required by this image.
+This image defaults to ONNX Runtime **CPU** with the selected INT8 DistilBERT graph. The ONNX code path uses `tokenizers` to load the saved `tokenizer.json` directly, plus backend-neutral types in `src.api.shared`. The PyTorch backend is imported lazily only when selected. This image intentionally does not install PyTorch or CUDA.
 
 The ONNX graph and tokenizer checkpoint are mounted read-only, not copied into the image or committed to Git. Local `pyproject.toml` and `uv.lock` describe the development environment and are **not** used by this Docker build.
 
 ## Prerequisites
 
 - Docker Engine or Docker Desktop with WSL integration
-- `~/issue-intent-artifacts/models/distilbert/best` containing the tokenizer and model configuration
+- `~/issue-intent-artifacts/models/distilbert/best` containing `tokenizer.json` and the model configuration
 - `~/issue-intent-artifacts/models/distilbert/onnx/model_int8.onnx` containing the quantized graph
 
 ## Build
@@ -17,7 +17,7 @@ The ONNX graph and tokenizer checkpoint are mounted read-only, not copied into t
 From the repository root:
 
 ```bash
-docker build -t issue-intent-api:onnx-int8 .
+docker build -t issue-intent-api:onnx-only .
 ```
 
 ## Run
@@ -28,7 +28,7 @@ docker run --rm \
   -p 127.0.0.1:8001:8000 \
   -v "$HOME/issue-intent-artifacts/models/distilbert/best:/models/distilbert:ro" \
   -v "$HOME/issue-intent-artifacts/models/distilbert/onnx:/models/onnx:ro" \
-  issue-intent-api:onnx-int8
+  issue-intent-api:onnx-only
 ```
 
 The image sets `ISSUE_INTENT_BACKEND=onnx-int8`, `ISSUE_INTENT_CHECKPOINT=/models/distilbert`, and `ISSUE_INTENT_ONNX_MODEL=/models/onnx/model_int8.onnx`. ONNX Runtime uses `CPUExecutionProvider`. The service runs as UID 10001 and exposes container port 8000. Port 8001 is bound to the host loopback interface only.
@@ -74,16 +74,16 @@ uv run pytest -q
 git diff --check
 ```
 
-The user reported 367 passing tests before this Docker-only change. Docker build and container smoke tests remain to be verified on the target machine.
+The previous transitional Docker image passed its HTTP smoke tests and measured 1.72 GB. The optimized ONNX-only image must be rebuilt, measured, and smoke-tested separately; no size or parity claim is made before that verification.
 
 ## Constraints and follow-up
 
-- The image retains CPU PyTorch for shared import compatibility; it is not yet an optimized ONNX-only image.
+- The ONNX-only image does not include PyTorch or Transformers. The local development environment still supports the PyTorch backend.
 - Inference is single-request oriented and uses a single Uvicorn worker by default.
 - No model weights are embedded in the image.
 - `docker/requirements.txt` has direct pins for serving packages, but the complete dependency graph is not locked.
 - Container throughput and end-to-end HTTP latency have not yet been measured.
-- Future cleanup: extract `Prediction`, `LABEL_NAMES`, and `resolve_checkpoint_path` to a lightweight module, avoid importing PyTorch on the ONNX code path, verify tokenizer compatibility without torch, and then remove CPU PyTorch from the ONNX-only image.
+- Shared inference contracts are defined in `src/api/shared.py`. Confirm the image does not install or import PyTorch and verify prediction parity against the transitional image.
 
 ## Troubleshooting
 
