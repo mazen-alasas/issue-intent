@@ -1,5 +1,3 @@
-"""Benchmark the local issue-intent prediction API."""
-
 import argparse
 import asyncio
 import json

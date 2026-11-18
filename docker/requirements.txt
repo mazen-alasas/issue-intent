@@ -2,7 +2,9 @@
 fastapi==0.163.0
 uvicorn==0.54.0
 
-# Transformer inference
-transformers==5.22.2
-safetensors==0.8.0
+# Load the exact saved tokenizer.json without Transformers or PyTorch
+tokenizers>=0.22,<1
+
+# Quantized CPU inference
 numpy>=1.26,<3
+onnxruntime==1.23.2

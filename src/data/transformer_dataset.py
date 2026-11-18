@@ -1,6 +1,14 @@
 from dataclasses import dataclass
+from typing import Protocol
 
-from transformers import PreTrainedTokenizerBase
+
+class IssueTokenizer(Protocol):
+    cls_token_id: int | None
+    sep_token_id: int | None
+
+    def __call__(
+        self, text: str, *, add_special_tokens: bool, truncation: bool
+    ) -> dict[str, list[int]]: ...
 
 
 @dataclass(frozen=True)
@@ -18,7 +26,7 @@ class TransformerInputConfig:
 def encode_issue(
     title: str,
     body: str,
-    tokenizer: PreTrainedTokenizerBase,
+    tokenizer: IssueTokenizer,
     config: TransformerInputConfig,
 ) -> dict[str, list[int]]:
     if not isinstance(title, str) or not isinstance(body, str):

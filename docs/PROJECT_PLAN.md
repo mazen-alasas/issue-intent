@@ -1,6 +1,6 @@
 # issue-intent — Project Plan
 
-**Updated:** 2026-11-17
+**Updated:** 2026-11-18
 
 **Project:** `issue-intent`
 
@@ -28,14 +28,14 @@ The project emphasizes reproducible data preparation, leakage-aware evaluation, 
 | Docker Deployment | `api-serving` | CPU-only image, external checkpoint mount, smoke tests | Completed and committed (`19497d1`) |
 | GitHub Actions CI | `api-serving` | Automated lint, formatting, and checkpoint-independent tests | Implemented; first run passed (`3f99725`) |
 | Web Application | `web-application` | React/TypeScript/Vite issue editor, Markdown preview, live inference, frontend tests | Implemented and committed; documentation and merge pending |
-| ONNX Browser Inference | `onnx-browser-inference` (proposed) | ONNX export, parity validation, INT8 assessment, browser inference, static deployment | Planned; after web-application merge |
+| ONNX Browser Inference | `onnx-browser-inference` | FP32 ONNX validated, INT8 CPU candidate assessed; opt-in ONNX API backend | In progress; browser inference and static deployment not implemented |
 | Portfolio Release | `portfolio-release` (proposed) | Reproducibility, diagrams, polished project narrative | Planned |
 
 **Optional:** Similar Issue Retrieval and Cloud Deployment, only if justified by measured needs.
 
-**Branch hygiene:** The last confirmed local branch is `web-application` at `6ad5e02` with a clean working tree before documentation edits (2026-11-17). Docker commit `19497d1` and CI commit `3f99725` were previously recorded on `api-serving`; earlier notes did not independently verify that branch's merge event. Do not claim `web-application` has merged until the merge is confirmed.
+**Branch hygiene:** Confirmed local branch `onnx-browser-inference` at `1cf7b28` before the ONNX INT8 update (2026-11-18); changes were uncommitted. Main included the web-application merge `cb38866`. Do not claim this ONNX work is merged.
 
-### Current stage: Web Application — Documentation and Merge Pending
+### Historical stage: Web Application — Implemented and Merged
 
 **Goal:** Close the implemented React + FastAPI application milestone without changing the frozen DistilBERT model or evaluation results.
 
@@ -59,7 +59,7 @@ The project emphasizes reproducible data preparation, leakage-aware evaluation, 
 3. Push the branch, inspect GitHub Actions results, and merge to `main` after verification.
 4. Start ONNX export and browser-inference assessment from the refreshed `main` in a separate branch.
 
-**Next milestone — ONNX browser inference:** Export the selected DistilBERT checkpoint to FP32 ONNX, verify parity, benchmark and consider INT8 quantization, port E4 preprocessing and tokenization with parity tests, and evaluate a free static-hosting demo while retaining FastAPI and Docker serving paths.
+**Current ONNX milestone:** FP32 export/parity and dynamic INT8 assessment completed. INT8 CPU is an opt-in deployment candidate based on a 14,040-row partial prefix (not a full official-test evaluation). Implement and test optional ONNX API inference before Docker changes; browser-side inference/tokenization parity and static hosting remain future work. See `docs/ONNX_INT8_REPORT.md`.
 
 ## 3. Engineering Principles
 - Python 3.11, `uv` for environment/dependencies, and a flat `src/` structure.

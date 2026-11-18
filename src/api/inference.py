@@ -1,5 +1,3 @@
-import os
-from dataclasses import dataclass
 from pathlib import Path
 
 import torch
@@ -8,7 +6,18 @@ from transformers import (
     AutoTokenizer,
 )
 
-from src.data.labels import LABEL_TO_ID
+from src.api.shared import (
+    DEFAULT_CHECKPOINT as DEFAULT_CHECKPOINT,
+)
+from src.api.shared import (
+    LABEL_NAMES as LABEL_NAMES,
+)
+from src.api.shared import (
+    Prediction as Prediction,
+)
+from src.api.shared import (
+    resolve_checkpoint_path as resolve_checkpoint_path,
+)
 from src.data.transformer_dataset import TransformerInputConfig, encode_issue
 from src.models.transformer_utils import (
     resolve_device,
@@ -16,36 +25,6 @@ from src.models.transformer_utils import (
 )
 from src.preprocessing.experiment_configs import EXPERIMENTS
 from src.preprocessing.structured import preprocess_structured
-
-LABEL_NAMES = tuple(
-    label
-    for label, _ in sorted(
-        LABEL_TO_ID.items(),
-        key=lambda item: item[1],
-    )
-)
-
-DEFAULT_CHECKPOINT = Path.home() / "issue-intent-artifacts/models/distilbert/best"
-
-
-def resolve_checkpoint_path(checkpoint: Path | None = None) -> Path:
-    """Resolve an explicit, environment, or default checkpoint path."""
-    if checkpoint is not None:
-        return Path(checkpoint).expanduser()
-
-    configured = os.environ.get("ISSUE_INTENT_CHECKPOINT")
-
-    if configured:
-        return Path(configured).expanduser()
-
-    return DEFAULT_CHECKPOINT
-
-
-@dataclass(frozen=True)
-class Prediction:
-    label: str
-    confidence: float
-    probabilities: dict[str, float]
 
 
 class IssueClassifier:
