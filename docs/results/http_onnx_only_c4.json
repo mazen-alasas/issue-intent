@@ -1,0 +1,24 @@
+{
+  "timestamp_utc": "2026-11-18T20:47:27.595535+00:00",
+  "base_url": "http://127.0.0.1:8002",
+  "endpoint": "/predict",
+  "payload": {
+    "title": "Application crashes on startup",
+    "body": "RuntimeError after updating."
+  },
+  "requests": 100,
+  "warmup": 10,
+  "concurrency": 4,
+  "elapsed_seconds": 0.7336,
+  "throughput_requests_per_second": 136.316,
+  "latency_ms": {
+    "mean": 28.735,
+    "p50": 28.109,
+    "p95": 35.309,
+    "p99": 42.953,
+    "min": 20.724,
+    "max": 50.792
+  },
+  "success_count": 100,
+  "failure_count": 0
+}
