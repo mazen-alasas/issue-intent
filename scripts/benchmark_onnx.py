@@ -10,6 +10,7 @@ import numpy as np
 import onnxruntime as ort
 import pandas as pd
 import torch
+from sklearn.metrics import accuracy_score, f1_score
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from src.data.labels import LABELS
@@ -27,24 +28,37 @@ def parse_args():
     )
     parser.add_argument("--checkpoint", type=Path, default=root / "best")
     parser.add_argument("--onnx", type=Path, default=root / "onnx/model_fp32.onnx")
+    parser.add_argument("--int8", type=Path, default=root / "onnx/model_int8.onnx")
     parser.add_argument(
-        "--output", type=Path, default=root / "onnx/fp32_benchmark.json"
+        "--output", type=Path, default=root / "onnx/int8_comparison.json"
     )
     parser.add_argument("--sample-size", type=int, default=200)
+    parser.add_argument("--benchmark-sample-size", type=int, default=40)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--batch-size", type=int, default=8)
-    parser.add_argument("--warmup", type=int, default=5)
-    parser.add_argument("--repeats", type=int, default=20)
+    parser.add_argument("--batch-size", type=int, default=4)
+    parser.add_argument("--warmup", type=int, default=1)
+    parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--threads", type=int, default=2)
     parser.add_argument("--atol", type=float, default=1e-4)
     parser.add_argument("--rtol", type=float, default=1e-4)
     args = parser.parse_args()
-    for name in ("sample_size", "batch_size", "warmup", "repeats", "threads"):
+    for name in (
+        "sample_size",
+        "benchmark_sample_size",
+        "batch_size",
+        "warmup",
+        "repeats",
+        "threads",
+    ):
         value = getattr(args, name)
         if value < (0 if name == "warmup" else 1):
             parser.error(
                 f"--{name.replace('_', '-')} must be positive (warmup may be zero)"
             )
+    if args.benchmark_sample_size > args.sample_size:
+        parser.error("--benchmark-sample-size cannot exceed --sample-size")
+    if args.atol < 0 or args.rtol < 0:
+        parser.error("--atol and --rtol must be nonnegative")
     return args
 
 
@@ -132,10 +146,96 @@ def timing(fn, batches, warmup, repeats, *, label="Model"):
     }
 
 
+def make_session(path, threads):
+    if not path.is_file():
+        raise FileNotFoundError(f"ONNX model not found: {path}")
+    options = ort.SessionOptions()
+    options.intra_op_num_threads = threads
+    options.inter_op_num_threads = 1
+    session = ort.InferenceSession(
+        str(path), sess_options=options, providers=["CPUExecutionProvider"]
+    )
+    if {item.name for item in session.get_inputs()} != {"input_ids", "attention_mask"}:
+        raise ValueError(f"Unexpected ONNX inputs: {path}")
+    if [item.name for item in session.get_outputs()] != ["logits"]:
+        raise ValueError(f"Unexpected ONNX outputs: {path}")
+    return session
+
+
+def evaluate_logits(reference, candidate, truth, *, atol, rtol, issue_ids):
+    if reference.shape != candidate.shape or reference.shape != (
+        len(truth),
+        len(LABELS),
+    ):
+        raise AssertionError("Unexpected or mismatched logits shape")
+    if not np.isfinite(reference).all() or not np.isfinite(candidate).all():
+        raise AssertionError("Non-finite logits")
+
+    ref_ids = reference.argmax(axis=1)
+    cand_ids = candidate.argmax(axis=1)
+    close = np.all(np.isclose(reference, candidate, atol=atol, rtol=rtol), axis=1)
+    diff = np.abs(reference - candidate)
+    relative = diff / np.maximum(np.abs(reference), 1e-8)
+    disagreements = [
+        {
+            "sample_index": i,
+            "issue_id": issue_ids[i],
+            "reference": LABELS[int(ref_ids[i])],
+            "candidate": LABELS[int(cand_ids[i])],
+        }
+        for i in range(len(truth))
+        if ref_ids[i] != cand_ids[i]
+    ]
+    return {
+        "prediction_agreement": float(np.mean(ref_ids == cand_ids)),
+        "close_logits_fraction": float(np.mean(close)),
+        "max_absolute_logit_difference": float(diff.max()),
+        "max_relative_logit_difference": float(relative.max()),
+        "disagreements": disagreements,
+    }
+
+
+def classification_metrics(logits, truth):
+    predictions = [LABELS[int(i)] for i in logits.argmax(axis=1)]
+    return {
+        "accuracy": float(accuracy_score(truth, predictions)),
+        "micro_f1": float(
+            f1_score(
+                truth, predictions, labels=LABELS, average="micro", zero_division=0
+            )
+        ),
+        "macro_f1": float(
+            f1_score(
+                truth, predictions, labels=LABELS, average="macro", zero_division=0
+            )
+        ),
+        "per_class_f1": {
+            label: float(value)
+            for label, value in zip(
+                LABELS,
+                f1_score(
+                    truth, predictions, labels=LABELS, average=None, zero_division=0
+                ),
+                strict=True,
+            )
+        },
+    }
+
+
+def probabilities(logits):
+    shifted = logits.astype(np.float64) - logits.max(axis=1, keepdims=True)
+    exp = np.exp(shifted)
+    return exp / exp.sum(axis=1, keepdims=True)
+
+
 def run(args):
     torch.set_num_threads(args.threads)
     checkpoint = args.checkpoint.expanduser().resolve()
-    onnx_path = args.onnx.expanduser().resolve()
+    fp32_path = args.onnx.expanduser().resolve()
+    int8_path = args.int8.expanduser().resolve()
+    if fp32_path == int8_path:
+        raise ValueError("FP32 and INT8 paths must differ")
+
     df = sample_data(args.data, args.sample_size, args.seed)
     tokenizer = AutoTokenizer.from_pretrained(
         checkpoint, use_fast=True, local_files_only=True
@@ -148,18 +248,10 @@ def run(args):
         .eval()
     )
     validate_model_labels(model)
-    options = ort.SessionOptions()
-    options.intra_op_num_threads = args.threads
-    options.inter_op_num_threads = 1
-    session = ort.InferenceSession(
-        str(onnx_path), sess_options=options, providers=["CPUExecutionProvider"]
-    )
-    if {x.name for x in session.get_inputs()} != {"input_ids", "attention_mask"}:
-        raise ValueError("Unexpected ONNX inputs")
-    if [x.name for x in session.get_outputs()] != ["logits"]:
-        raise ValueError("Unexpected ONNX outputs")
+    fp32_session = make_session(fp32_path, args.threads)
+    int8_session = make_session(int8_path, args.threads)
     cases = list(encode_rows(df, tokenizer))
-    batches = [
+    quality_batches = [
         make_batch(cases[i : i + args.batch_size], tokenizer.pad_token_id)
         for i in range(0, len(cases), args.batch_size)
     ]
@@ -170,73 +262,93 @@ def run(args):
                 **{k: torch.from_numpy(v) for k, v in batch.items()}
             ).logits.numpy()
 
-    def onnx_forward(batch):
-        return session.run(["logits"], batch)[0]
+    def fp32_forward(batch):
+        return fp32_session.run(["logits"], batch)[0]
 
-    max_abs = 0.0
-    max_rel = 0.0
-    matches = 0
-    close_count = 0
+    def int8_forward(batch):
+        return int8_session.run(["logits"], batch)[0]
+
+    print(f"Evaluating {len(df)} real issues across three runtimes...", flush=True)
+    torch_logits = np.concatenate([torch_forward(batch) for batch in quality_batches])
+    fp32_logits = np.concatenate([fp32_forward(batch) for batch in quality_batches])
+    int8_logits = np.concatenate([int8_forward(batch) for batch in quality_batches])
     truth = df["labels"].tolist()
-    pytorch_correct = 0
-    onnx_correct = 0
-    offset = 0
-    disagreements = []
-    for batch in batches:
-        expected = torch_forward(batch)
-        actual = onnx_forward(batch)
-        if expected.shape != actual.shape or expected.shape[1] != len(LABELS):
-            raise AssertionError("Unexpected or mismatched logits shape")
-        if not np.isfinite(expected).all() or not np.isfinite(actual).all():
-            raise AssertionError("Non-finite logits")
-        diff = np.abs(expected - actual)
-        max_abs = max(max_abs, float(diff.max()))
-        max_rel = max(max_rel, float((diff / np.maximum(np.abs(expected), 1e-8)).max()))
-        close_count += int(
-            np.all(
-                np.isclose(expected, actual, atol=args.atol, rtol=args.rtol), axis=1
-            ).sum()
-        )
-        py_ids = expected.argmax(axis=1)
-        ox_ids = actual.argmax(axis=1)
-        matches += int((py_ids == ox_ids).sum())
-        for j, (p, o) in enumerate(zip(py_ids, ox_ids, strict=True)):
-            label = truth[offset + j]
-            pytorch_correct += int(LABELS[int(p)] == label)
-            onnx_correct += int(LABELS[int(o)] == label)
-            if p != o:
-                disagreements.append(
-                    {
-                        "sample_index": offset + j,
-                        "issue_id": str(df.iloc[offset + j]["id"]),
-                        "pytorch": LABELS[int(p)],
-                        "onnx": LABELS[int(o)],
-                    }
-                )
-        offset += len(py_ids)
-    sample_ids = [str(x) for x in df["id"].tolist()]
-    digest = hashlib.sha256(
-        json.dumps(sample_ids, separators=(",", ":")).encode()
+    ids = [str(value) for value in df["id"]]
+    fp32_parity = evaluate_logits(
+        torch_logits,
+        fp32_logits,
+        truth,
+        atol=args.atol,
+        rtol=args.rtol,
+        issue_ids=ids,
+    )
+    int8_parity = evaluate_logits(
+        fp32_logits,
+        int8_logits,
+        truth,
+        atol=args.atol,
+        rtol=args.rtol,
+        issue_ids=ids,
+    )
+    fp32_prob = probabilities(fp32_logits)
+    int8_prob = probabilities(int8_logits)
+    int8_parity["max_absolute_probability_difference"] = float(
+        np.max(np.abs(fp32_prob - int8_prob))
+    )
+    int8_parity["mean_absolute_probability_difference"] = float(
+        np.mean(np.abs(fp32_prob - int8_prob))
+    )
+    print(
+        f"FP32 vs PyTorch: agreement={fp32_parity['prediction_agreement']:.2%}, "
+        f"close={fp32_parity['close_logits_fraction']:.2%}",
+        flush=True,
+    )
+    print(
+        f"INT8 vs FP32: agreement={int8_parity['prediction_agreement']:.2%}, "
+        f"changed={len(int8_parity['disagreements'])}, "
+        f"max_abs_logit={int8_parity['max_absolute_logit_difference']:.6f}",
+        flush=True,
+    )
+
+    # Use a deterministic subset of the quality sample for timing, avoiding another
+    # dataset read and keeping the quality and timing populations related.
+    timing_df = sample_frame(df, args.benchmark_sample_size, args.seed)
+    by_id = {
+        str(issue_id): case for issue_id, case in zip(df["id"], cases, strict=True)
+    }
+    timing_cases = [by_id[str(issue_id)] for issue_id in timing_df["id"]]
+    timing_batches = [
+        make_batch(timing_cases[i : i + args.batch_size], tokenizer.pad_token_id)
+        for i in range(0, len(timing_cases), args.batch_size)
+    ]
+    print(
+        f"Timing {len(timing_df)} issues: {len(timing_batches)} batches/round; "
+        f"warmup={args.warmup}, repeats={args.repeats}",
+        flush=True,
+    )
+    timings = {
+        "pytorch": timing(
+            torch_forward, timing_batches, args.warmup, args.repeats, label="PyTorch"
+        ),
+        "onnx_fp32": timing(
+            fp32_forward, timing_batches, args.warmup, args.repeats, label="ONNX FP32"
+        ),
+        "onnx_int8": timing(
+            int8_forward, timing_batches, args.warmup, args.repeats, label="ONNX INT8"
+        ),
+    }
+    fp32_size = fp32_path.stat().st_size / 1024**2
+    int8_size = int8_path.stat().st_size / 1024**2
+    sample_digest = hashlib.sha256(
+        json.dumps(ids, separators=(",", ":")).encode()
     ).hexdigest()
-    print(
-        f"Sample: {len(df)} issues; distribution={df['labels'].value_counts().sort_index().to_dict()}"
-    )
-    print(
-        f"Parity: agreement={matches}/{len(df)}; close={close_count}/{len(df)}; "
-        f"max_abs={max_abs:.8f}; max_rel={max_rel:.8f}"
-    )
-    print("Benchmarking CPU model-only latency; this may take a few minutes...")
-    torch_timing = timing(
-        torch_forward, batches, args.warmup, args.repeats, label="PyTorch"
-    )
-    onnx_timing = timing(onnx_forward, batches, args.warmup, args.repeats, label="ONNX")
     report = {
         "timestamp_utc": datetime.now(UTC).isoformat(),
         "dataset": str(args.data),
         "sample_size": len(df),
         "seed": args.seed,
-        "sample_issue_ids": sample_ids,
-        "sample_ids_sha256": digest,
+        "sample_issue_ids": ids,
+        "sample_ids_sha256": sample_digest,
         "class_counts": {
             str(k): int(v) for k, v in df["labels"].value_counts().sort_index().items()
         },
@@ -245,20 +357,19 @@ def run(args):
         "max_length": 256,
         "title_budget": 48,
         "checkpoint": str(checkpoint),
-        "onnx_model": str(onnx_path),
-        "onnx_size_mib": onnx_path.stat().st_size / 1024**2,
-        "checkpoint_weights_size_mib": (checkpoint / "model.safetensors").stat().st_size
-        / 1024**2,
-        "parity": {
-            "prediction_agreement": matches / len(df),
-            "close_logits_fraction": close_count / len(df),
-            "max_absolute_logit_difference": max_abs,
-            "max_relative_logit_difference": max_rel,
-            "atol": args.atol,
-            "rtol": args.rtol,
-            "disagreements": disagreements,
-            "pytorch_sample_accuracy": pytorch_correct / len(df),
-            "onnx_sample_accuracy": onnx_correct / len(df),
+        "onnx_fp32_model": str(fp32_path),
+        "onnx_int8_model": str(int8_path),
+        "model_sizes_mib": {
+            "onnx_fp32": fp32_size,
+            "onnx_int8": int8_size,
+            "size_reduction_percent": 100 * (1 - int8_size / fp32_size),
+        },
+        "tolerances": {"atol": args.atol, "rtol": args.rtol},
+        "parity": {"pytorch_vs_fp32": fp32_parity, "fp32_vs_int8": int8_parity},
+        "quality": {
+            "pytorch": classification_metrics(torch_logits, truth),
+            "onnx_fp32": classification_metrics(fp32_logits, truth),
+            "onnx_int8": classification_metrics(int8_logits, truth),
         },
         "benchmark": {
             "device": "cpu",
@@ -266,25 +377,55 @@ def run(args):
             "batch_size": args.batch_size,
             "warmup_rounds": args.warmup,
             "measurement_rounds": args.repeats,
+            "timing_sample_size": len(timing_df),
+            "timing_issue_ids": [str(x) for x in timing_df["id"]],
             "excludes": ["model_load", "preprocessing", "tokenization"],
-            "pytorch": torch_timing,
-            "onnx": onnx_timing,
-            "onnx_speedup_vs_pytorch": onnx_timing["throughput_issues_per_second"]
-            / torch_timing["throughput_issues_per_second"],
+            "measurements": timings,
+            "int8_speedup_vs_fp32": (
+                timings["onnx_int8"]["throughput_issues_per_second"]
+                / timings["onnx_fp32"]["throughput_issues_per_second"]
+            ),
         },
     }
-    args.output.expanduser().parent.mkdir(parents=True, exist_ok=True)
-    args.output.expanduser().write_text(
-        json.dumps(report, indent=2, ensure_ascii=False) + "\n"
+    output = args.output.expanduser()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
-    print(f"PyTorch: {torch_timing}")
-    print(f"ONNX: {onnx_timing}")
-    print(f"Report: {args.output.expanduser()}")
-    if matches != len(df) or close_count != len(df):
-        raise AssertionError(
-            "Real-data parity failed; inspect report before proceeding"
+    for name, values in timings.items():
+        print(f"{name}: {values}")
+    for name, values in report["quality"].items():
+        print(
+            f"{name}: macro_f1={values['macro_f1']:.6f}, micro_f1={values['micro_f1']:.6f}"
         )
-    print("PASS: real-data FP32 parity on sampled issues")
+    print(f"Report: {output}")
+    if (
+        fp32_parity["prediction_agreement"] != 1.0
+        or fp32_parity["close_logits_fraction"] != 1.0
+    ):
+        raise AssertionError("PyTorch/FP32 regression detected; inspect saved report")
+    print(
+        "PASS: FP32 parity verified; INT8 quality and performance reported (not gated)"
+    )
+
+
+def sample_frame(df, count, seed):
+    if count > len(df) or count < 1:
+        raise ValueError("Invalid benchmark sample size")
+    counts = df["labels"].value_counts().sort_index()
+    exact = counts / len(df) * count
+    quotas = np.floor(exact).astype(int)
+    remainder = count - int(quotas.sum())
+    for label in (
+        (exact - quotas).sort_values(ascending=False, kind="stable").index[:remainder]
+    ):
+        quotas.loc[label] += 1
+    pieces = [
+        df.loc[df["labels"] == label].sample(n=int(n), random_state=seed)
+        for label, n in quotas.items()
+        if n
+    ]
+    return pd.concat(pieces).sample(frac=1, random_state=seed).reset_index(drop=True)
 
 
 if __name__ == "__main__":

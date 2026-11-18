@@ -47,10 +47,14 @@ The 40-issue sample contained no null bodies. The complete test data has 466 nul
 ```bash
 uv run python -m scripts.export_onnx
 uv run python -m scripts.validate_onnx
-uv run python -u -m scripts.benchmark_onnx --sample-size 40 --seed 42 --batch-size 4 --warmup 1 --repeats 3 --threads 2
+uv run python -u -m scripts.benchmark_onnx --sample-size 40 --benchmark-sample-size 40 --seed 42 --batch-size 4 --warmup 1 --repeats 3 --threads 2 --output ~/issue-intent-artifacts/models/distilbert/onnx/int8_comparison.json
 ```
 
-The benchmark writes `~/issue-intent-artifacts/models/distilbert/onnx/fp32_benchmark.json`, including sample issue IDs and a SHA-256 digest of their ordered list. Larger samples and repeated interleaved runs are recommended before drawing stronger latency conclusions.
+The current comparison benchmark writes `~/issue-intent-artifacts/models/distilbert/onnx/int8_comparison.json`, including sample issue IDs and a SHA-256 digest of their ordered list. Larger samples and repeated interleaved runs are recommended before drawing stronger latency conclusions.
+
+## Historical scope note
+
+This document records the FP32-only milestone. INT8 results are recorded separately in `docs/ONNX_INT8_REPORT.md`; the benchmark script has since been extended to require both FP32 and INT8 graphs.
 
 ## Next stage
 

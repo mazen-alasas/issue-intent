@@ -6,13 +6,22 @@
 
 **Local path:** `/home/mazen/issue-intent`
 
-**Last updated:** 2026-11-17
+**Last updated:** 2026-11-18
 
-**Current stage:** `web-application` — React/TypeScript frontend, Markdown editor, and FastAPI integration implemented and committed; documentation and merge pending.
+**Current stage:** `onnx-browser-inference` — FP32 ONNX validated; INT8 CPU candidate evaluated on a 14,040-row test prefix; optional ONNX API backend prepared, pending local integration checks.
 
 **Last completed branch:** `api-serving` (Docker and CI work recorded as committed; present `web-application` branch is based on the incorporated serving work).
 
-**Current branch:** `web-application` (HEAD `6ad5e02`, confirmed 2026-11-17; clean working tree before documentation edits). Next: documentation commit, quality gates, CI review, and merge into `main`.
+**Current branch:** `onnx-browser-inference` (HEAD `1cf7b28` before this update, confirmed 2026-11-18). ONNX changes were uncommitted at the time of review; do not assume they are merged.
+
+## ONNX milestone update — 2026-11-18
+
+- FP32 ONNX export and parity validated; see `docs/ONNX_FP32_REPORT.md`.
+- Dynamic INT8 model: 132.44 MiB versus 255.54 MiB FP32 (48.17% reduction).
+- Partial official-test prefix (14,040/142,320): FP32 Micro/Macro F1 0.881054/0.783052; INT8 0.881339/0.781291; prediction agreement 98.2906%. **Not a full INT8 official-test evaluation.**
+- Earlier CPU batch-4 benchmark observed 1.43× INT8 throughput versus FP32 (model-only).
+- ONNX INT8 CPU is an **opt-in deployment candidate**, not the default Docker backend. PyTorch remains the default API backend until end-to-end validation and packaging.
+- See `docs/ONNX_INT8_REPORT.md` for provenance, caveats and the next gate.
 
 ## Executive Status
 

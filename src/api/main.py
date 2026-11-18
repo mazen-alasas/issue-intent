@@ -17,7 +17,15 @@ def create_app(classifier_factory=None) -> FastAPI:
     """Create the API with an injectable classifier factory."""
 
     if classifier_factory is None:
-        classifier_factory = IssueClassifier
+        backend = os.environ.get("ISSUE_INTENT_BACKEND", "pytorch").lower()
+        if backend == "pytorch":
+            classifier_factory = IssueClassifier
+        elif backend == "onnx-int8":
+            from src.api.onnx_inference import OnnxIssueClassifier
+
+            classifier_factory = OnnxIssueClassifier
+        else:
+            raise ValueError(f"Unsupported ISSUE_INTENT_BACKEND: {backend}")
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
