@@ -1,22 +1,44 @@
-# Browser inference: first compatibility gate
+# Browser ONNX compatibility and tokenizer parity
 
-The purpose of this test is to establish that **the existing INT8 ONNX graph**, without conversion or retraining, can execute with ONNX Runtime Web (WASM). The Python exporter creates three realistic issue inputs, with the exact E4 preprocessing and tokenizer ID budgeting already used by the ONNX CPU API. The browser executes those same input IDs to isolate model-graph compatibility from the JavaScript preprocessing/tokenization port.
+**Status (November 19, 2026):** Both browser compatibility gates passed on three reference fixtures each, and browser inference is integrated into the existing React interface. This is **not** a full INT8 official-test evaluation or proof of cross-browser compatibility.
 
-## Local workflow
+## What was tested
 
-1. Unpack the delivered files at the repository root.
-2. From `frontend/`, run `npm install onnxruntime-web` to add the browser runtime dependency, then `npm run build`, `npm run test`, and `npm run lint`.
-3. From the repository root, run `uv run python scripts/export_browser_onnx_fixtures.py`. This writes `frontend/public/browser-fixtures.json` (no model weights).
-4. Copy (do not commit) `$HOME/issue-intent-artifacts/models/distilbert/onnx/model_int8.onnx` to `frontend/public/models/model_int8.onnx`.
-5. From `frontend/`, run `npm run dev -- --host 127.0.0.1`, then visit `http://127.0.0.1:5173/browser-smoke.html` and click **Run compatibility test**.
-6. Expect 3/3 PASS; send the complete browser log if an operator fails or scores drift.
+1. **Graph compatibility:** the exported INT8 ONNX graph executed with ONNX Runtime Web (WASM) using Python-generated `input_ids` and `attention_mask`. This isolates runtime/operator compatibility from browser preprocessing.
+2. **Preprocessing and tokenizer parity:** browser E4 processing, token IDs and attention masks were compared against Python-generated fixtures.
+3. **Integrated UI:** the existing issue editor and prediction panel produced a real prediction locally, including in a production preview with the model fetched from Hugging Face rather than bundled into the static site.
 
-If graph execution works, the **next stage** is porting E4 preprocessing and tokenization, checking Python↔JavaScript token-ID parity, and integrating the result with the existing `predictIssue` API interface (keeping the current FastAPI path for local development). After that, host the website on free static hosting and model artifacts on a static file host supporting ~132 MiB objects and cross-origin downloads.
+| Check | Observed result |
+| --- | --- |
+| Browser ONNX graph compatibility | 3/3 labels passed |
+| Browser E4 preprocessing | 3/3 fixtures passed |
+| Browser `input_ids` parity | 3/3 fixtures passed |
+| Browser `attention_mask` parity | 3/3 fixtures passed |
+| Local production preview | Successful prediction without FastAPI |
 
-## Security and repository hygiene
+The graph fixture checks observed small logit/probability differences from Python ONNX Runtime; label agreement on three examples is not proof of universal numerical parity. These tests used representative cases including an issue with Markdown/code content.
 
-- Never commit the ONNX model, checkpoints, or `frontend/public/models/` directory.
-- Remove `frontend/public/models/model_int8.onnx` before publishing or building a public artifact; the model must eventually be downloaded from a separately hosted artifact URL rather than embedded in Cloudflare Pages assets.
-- Browser test fixtures are reproducible and safe to version if desired; the model is not.
-- This test does **not** prove cross-language preprocessing/tokenization parity, cross-browser compatibility, or final deployment performance.
-- Model download time, browser RAM, browser support for quantized operators, CORS, and caching remain to be validated.
+## Local compatibility harnesses
+
+From the repository root, Python fixtures can be generated using the checked-in script and a locally available model checkpoint:
+
+```bash
+uv run python -m scripts.export_browser_onnx_fixtures
+```
+
+For the **local graph compatibility harness only**, the ONNX file can be copied into `frontend/public/models/model_int8.onnx` (do **not** commit it). From `frontend/`, run:
+
+```bash
+npm ci
+npm run dev -- --host 127.0.0.1
+```
+
+Open `/browser-smoke.html` for graph execution and `/browser-parity.html` for E4/tokenizer parity. The static production demo instead fetches the graph from the public [Hugging Face model repository](https://huggingface.co/mazenalasas/issue-intent-onnx). Browser fixtures and local model weights are excluded from production output by the static preparation script.
+
+## Repository hygiene and limitations
+
+- **Never commit** `frontend/public/models/model_int8.onnx`, full checkpoints, or datasets.
+- **Do track** the small compatible tokenizer assets under `frontend/public/models/tokenizer/` for the public static site.
+- Do not confuse `/blob/main/model_int8.onnx` with the direct-download `/resolve/main/model_int8.onnx` URL.
+- First-load time, model RAM use, CORS, network and device capabilities vary. The observed fast repeated predictions benefit from cache/session reuse.
+- Public Cloudflare Pages deployment and uncached public-browser validation remain pending. See [Static Deployment](STATIC_DEPLOYMENT.md).

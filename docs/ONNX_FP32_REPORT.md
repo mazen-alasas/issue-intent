@@ -56,6 +56,6 @@ The current comparison benchmark writes `~/issue-intent-artifacts/models/distilb
 
 This document records the FP32-only milestone. INT8 results are recorded separately in `docs/ONNX_INT8_REPORT.md`; the benchmark script has since been extended to require both FP32 and INT8 graphs.
 
-## Next stage
+## Subsequent stages (status as of November 19, 2026)
 
-Evaluate ONNX INT8 quantization with explicit FP32-vs-INT8 parity and latency/size tradeoffs. Preserve the FP32 graph and original PyTorch checkpoint as reference artifacts. Browser preprocessing/tokenization parity and ONNX Runtime Web remain separate milestones.
+INT8 quantization, ONNX-only CPU Docker, browser E4/tokenizer parity, and ONNX Runtime Web integration were subsequently implemented and locally validated. The original FP32 validation measurements above remain unchanged. See [INT8 Report](ONNX_INT8_REPORT.md), [Browser Compatibility](BROWSER_INFERENCE_COMPATIBILITY.md) and [Static Deployment](STATIC_DEPLOYMENT.md). Public Cloudflare Pages deployment is still pending.

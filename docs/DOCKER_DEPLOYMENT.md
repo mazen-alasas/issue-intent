@@ -1,69 +1,67 @@
 # Docker Deployment — ONNX INT8 CPU
 
-## Scope
+**Verified locally by November 19, 2026.** This is an **independent server deployment**; the static browser demo does not use Docker or FastAPI.
 
-This image defaults to ONNX Runtime **CPU** with the selected INT8 DistilBERT graph. The ONNX code path uses `tokenizers` to load the saved `tokenizer.json` directly, plus backend-neutral types in `src.api.shared`. The PyTorch backend is imported lazily only when selected. This image intentionally does not install PyTorch or CUDA.
+## Architecture
 
-The ONNX graph and tokenizer checkpoint are mounted read-only, not copied into the image or committed to Git. Local `pyproject.toml` and `uv.lock` describe the development environment and are **not** used by this Docker build.
+The ONNX-only image runs FastAPI + ONNX Runtime CPU with a directly loaded `tokenizer.json` (the `tokenizers` library) and backend-neutral shared prediction contracts. The PyTorch backend remains available in the development environment but **PyTorch is absent from the ONNX-only image**. No GPU/CUDA runtime is needed. Model weights are mounted read-only rather than embedded in the image.
+
+The image uses `docker/requirements.txt` rather than the development `uv.lock`; its transitive dependency graph is not fully locked. The service runs as non-root UID 10001, one Uvicorn worker, on container port 8000.
 
 ## Prerequisites
 
-- Docker Engine or Docker Desktop with WSL integration
-- `~/issue-intent-artifacts/models/distilbert/best` containing `tokenizer.json` and the model configuration
-- `~/issue-intent-artifacts/models/distilbert/onnx/model_int8.onnx` containing the quantized graph
+- Docker Engine or Docker Desktop with WSL integration.
+- Local tokenizer/checkpoint directory: `~/issue-intent-artifacts/models/distilbert/best`.
+- ONNX graph: `~/issue-intent-artifacts/models/distilbert/onnx/model_int8.onnx`.
+- Read permissions for the non-root container user on mounted paths.
 
-## Build
+## Build and run
 
 From the repository root:
 
 ```bash
 docker build -t issue-intent-api:onnx-only .
-```
-
-## Run
-
-```bash
 docker run --rm \
-  --name issue-intent-api \
-  -p 127.0.0.1:8001:8000 \
+  --name issue-intent-onnx-only \
+  -p 127.0.0.1:8002:8000 \
   -v "$HOME/issue-intent-artifacts/models/distilbert/best:/models/distilbert:ro" \
   -v "$HOME/issue-intent-artifacts/models/distilbert/onnx:/models/onnx:ro" \
   issue-intent-api:onnx-only
 ```
 
-The image sets `ISSUE_INTENT_BACKEND=onnx-int8`, `ISSUE_INTENT_CHECKPOINT=/models/distilbert`, and `ISSUE_INTENT_ONNX_MODEL=/models/onnx/model_int8.onnx`. ONNX Runtime uses `CPUExecutionProvider`. The service runs as UID 10001 and exposes container port 8000. Port 8001 is bound to the host loopback interface only.
+The image configures `ISSUE_INTENT_BACKEND=onnx-int8`, `ISSUE_INTENT_CHECKPOINT=/models/distilbert`, and `ISSUE_INTENT_ONNX_MODEL=/models/onnx/model_int8.onnx`. The published host binding `127.0.0.1:8002` is local-only.
 
-If the host uses restrictive file permissions, ensure the non-root container user can read both mounted directories and files. Avoid making private checkpoints world-writable.
-
-## Verify
+## Smoke checks
 
 In another terminal:
 
 ```bash
-curl -i http://127.0.0.1:8001/health
-
-curl -sS -X POST http://127.0.0.1:8001/predict \
+curl -i http://127.0.0.1:8002/health
+curl -sS -X POST http://127.0.0.1:8002/predict \
   -H 'Content-Type: application/json' \
   -d '{"title":"Application crashes on startup","body":"RuntimeError after updating."}'
-
-uv run python scripts/smoke_test_api.py
+docker exec issue-intent-onnx-only python -c \
+  'import importlib.util; assert importlib.util.find_spec("torch") is None; print("PASS: torch absent")'
+docker exec issue-intent-onnx-only python -c \
+  'import onnxruntime as ort; print(ort.get_available_providers())'
 ```
 
-Expected: `/health` returns HTTP 200 with `status=healthy`, and `/predict` returns a label, confidence, and a normalized probability distribution across bug, documentation, feature, and question. The local example previously returned `bug`; the Docker result must be checked rather than assumed.
+**Observed:** container startup succeeded, `/health` and `/predict` returned HTTP 200, and the reference input returned `bug` with confidence `0.9955799012318574`. `torch` was absent and `CPUExecutionProvider` was available. The full Python test suite passed **372 tests**.
 
-Check the configured backend and provider:
+## Measured image size and HTTP performance
 
-```bash
-docker exec issue-intent-api sh -c 'printf "Backend=%s\nGraph=%s\n" "$ISSUE_INTENT_BACKEND" "$ISSUE_INTENT_ONNX_MODEL"'
-docker exec issue-intent-api python -c 'import onnxruntime as ort; print(ort.get_available_providers())'
-docker logs --tail 40 issue-intent-api
-```
+| Measurement | Observed value |
+| --- | ---: |
+| Original PyTorch CPU image (earlier) | 1.64 GB |
+| Transitional ONNX INT8 image retaining PyTorch | 1.72 GB |
+| **Optimized ONNX-only image** | **556 MB** |
+| HTTP throughput, concurrency 1 | 56.986 requests/s |
+| HTTP throughput, concurrency 4 | 136.316 requests/s |
+| HTTP p95 latency, concurrency 1 / 4 | 21.388 ms / 35.309 ms |
 
-`CPUExecutionProvider` must be available; the Docker environment is not configured for CUDA. The backend is selected at application startup. The `/health` endpoint does not currently expose the backend name.
+HTTP results used **100 measured requests and 10 warmups per run**, with one short repeated issue and one Uvicorn worker. They are not production capacity claims. See [HTTP Benchmark Report](HTTP_BENCHMARK_REPORT.md).
 
-## Quality checks
-
-Run from the repository root before committing:
+## Quality gate
 
 ```bash
 uv run ruff check --fix .
@@ -74,17 +72,11 @@ uv run pytest -q
 git diff --check
 ```
 
-The previous transitional Docker image passed its HTTP smoke tests and measured 1.72 GB. The optimized ONNX-only image must be rebuilt, measured, and smoke-tested separately; no size or parity claim is made before that verification.
+## Limits and troubleshooting
 
-## Constraints and follow-up
-
-- The ONNX-only image does not include PyTorch or Transformers. The local development environment still supports the PyTorch backend.
-- Inference is single-request oriented and uses a single Uvicorn worker by default.
-- No model weights are embedded in the image.
-- `docker/requirements.txt` has direct pins for serving packages, but the complete dependency graph is not locked.
-- Container throughput and end-to-end HTTP latency have not yet been measured.
-- Shared inference contracts are defined in `src/api/shared.py`. Confirm the image does not install or import PyTorch and verify prediction parity against the transitional image.
-
-## Troubleshooting
-
-If startup fails, inspect `docker logs issue-intent-api` and verify both volume paths exist and are readable. A missing graph or tokenizer causes startup failure. If port 8001 is occupied, change the host side of the `-p` mapping. With `--rm`, the container disappears after it stops.
+- No weights are baked into the image; mount both directories and verify read permissions.
+- If startup fails, inspect `docker logs issue-intent-onnx-only` while it is running. `--rm` removes the container on exit.
+- If port 8002 is occupied, change only the host side of `-p`.
+- The measured size is the local `docker image ls` figure, not an OCI transfer-size estimate.
+- No multi-worker, sustained-load, cold-start or public-service SLA measurements were performed.
+- For the browser-only portfolio path, use [Static Deployment](STATIC_DEPLOYMENT.md), not this container.
