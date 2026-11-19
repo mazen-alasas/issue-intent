@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-18  
 **Branch:** `onnx-browser-inference`  
-**Status:** INT8 CPU accepted as a deployment candidate; full INT8 official-test evaluation **not completed**.
+**Status (updated 2026-11-19):** INT8 deployed and verified in local ONNX-only Docker and browser preview; full INT8 official-test evaluation **not completed**, public Cloudflare Pages deployment **pending**.
 
 ## Scope and provenance
 
@@ -42,7 +42,7 @@ Partial label fractions versus complete official test: bug 51.92% vs 52.54%; doc
 
 ## Engineering decision
 
-Use **ONNX INT8 on CPU as a deployment candidate**, preserving PyTorch and ONNX FP32 for reference/fallback. The full INT8 evaluation was interrupted to avoid an unjustified multi-hour run. A separate **end-to-end API parity and latency** check is required before changing the default backend or Docker deployment. The new ONNX backend is opt-in; it does not imply browser-side ONNX Runtime Web support.
+The original decision was to adopt **ONNX INT8 as a CPU deployment candidate**, preserving PyTorch and FP32 references. Subsequent work implemented and verified the ONNX-only CPU Docker path and browser ONNX Runtime Web (WASM) integration. The full INT8 official-test evaluation remains incomplete; the 14,040-row prefix is **not** a representative guarantee. The browser deployment is locally validated, but **public Cloudflare Pages availability remains unverified**. See [Docker Deployment](DOCKER_DEPLOYMENT.md), [HTTP Benchmark Report](HTTP_BENCHMARK_REPORT.md), and [Browser Compatibility](BROWSER_INFERENCE_COMPATIBILITY.md).
 
 ## Reproduction and checks
 
@@ -56,3 +56,12 @@ uv run pytest -q
 ```
 
 The partial report command requires the saved `.progress.npz` checkpoint and official test Parquet. Do not run full evaluation unless its additional value justifies the runtime.
+
+
+## Serving and browser validation — November 19, 2026
+
+- Optimized ONNX-only Docker image: **556 MB**, compared with the earlier 1.72 GB transitional image; PyTorch confirmed absent.
+- Docker `/health` and `/predict` smoke tests passed; fixed short-input HTTP benchmark: **56.986 req/s (C1)** and **136.316 req/s (C4)** over 100 measured requests each.
+- ONNX Runtime Web graph: **3/3** reference cases matched expected labels; browser E4, token IDs and attention masks: **3/3** Python fixtures matched.
+- Local production preview used the INT8 graph hosted on Hugging Face and returned a prediction in the existing React UI.
+- The browser fixtures do not replace a full INT8 official-test evaluation or prove cross-browser performance. Public Cloudflare deployment remains pending.

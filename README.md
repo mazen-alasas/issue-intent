@@ -1,104 +1,68 @@
 # issue-intent
 
-**NLP-based GitHub Issue Type Classification**
+**GitHub issue classification · NLP experimentation · ONNX browser inference**
 
-`issue-intent` is an NLP/ML engineering project that classifies real GitHub issues as **bug**, **feature**, **question**, or **documentation**. It compares classical NLP, a PyTorch TextCNN baseline, and a fine-tuned DistilBERT, emphasizing data quality, reproducible evaluation, resource-aware model development, and practical model serving.
+`issue-intent` classifies English GitHub issue reports into **bug**, **feature**, **question**, and **documentation**. The project follows the full ML engineering lifecycle: dataset audits, reproducible splits, classical and neural baselines, DistilBERT fine-tuning, held-out evaluation, CPU serving, ONNX quantization, and a GitHub-inspired React demo.
 
-The repository also contains a **GitHub-inspired React web application** with a Markdown issue editor and a prediction panel connected to the FastAPI inference service. The app currently runs locally; a public demo is **not yet deployed**.
+**Status (November 19, 2026):** The browser demo and local **production preview** work with the INT8 model hosted on [Hugging Face](https://huggingface.co/mazenalasas/issue-intent-onnx), without a Python server. **Cloudflare Pages is not yet deployed or verified.** The `static-deployment` branch is being prepared for review and merge. See the [static deployment guide](docs/STATIC_DEPLOYMENT.md).
 
 ## Results
 
-The selected model is a fine-tuned **DistilBERT** checkpoint from epoch 3, selected using validation **Macro F1**. Official NLBSE 2023 test inference was performed on Kaggle, and the saved outputs were audited locally.
+The selected checkpoint is DistilBERT (epoch 3, chosen by validation Macro F1). The official NLBSE'23 test set contains **142,320** issues.
 
-| Model | Evaluation split | Micro F1 | Macro F1 |
-|---|---|---:|---:|
+| Model | Split | Micro F1 | Macro F1 |
+| --- | --- | ---: | ---: |
 | TF-IDF + Logistic Regression | Validation | 0.842650 | 0.706409 |
 | TextCNN | Validation | 0.852650 | 0.724730 |
 | DistilBERT | Validation | 0.883665 | 0.788362 |
-| **DistilBERT** | **Official test** | **0.886558** | **0.791175** |
+| **DistilBERT (selected PyTorch checkpoint)** | **Official test** | **0.886558** | **0.791175** |
 
-The official test has **142,320 issues**, including **126,175 correct** and **16,145 incorrect** predictions. DistilBERT achieved **88.66% accuracy** and **0.884702 weighted F1**. `question` and `documentation` remain the weaker classes. The models above were not all evaluated on the official test split, so this table is **not** a same-test-set architecture comparison.
+The official test recorded **126,175 correct** and **16,145 incorrect** predictions, weighted F1 **0.884702**. The first three rows use validation rather than the official test and are **not a same-split comparison**. `question` and `documentation` remain more difficult classes. See [final evaluation](docs/FINAL_EVALUATION_REPORT.md) and [model card](docs/MODEL_CARD.md).
 
-See the [Final Evaluation Report](docs/FINAL_EVALUATION_REPORT.md) and [Model Card](docs/MODEL_CARD.md) for per-class metrics, the evaluation protocol, provenance caveats, and limitations.
+The **INT8 ONNX** graph was evaluated separately on the **first 14,040 test rows** (9.87%, non-random): Micro F1 **0.881339**, Macro F1 **0.781291**. These partial scores must not be presented as the full official-test performance of the deployed graph. [INT8 report](docs/ONNX_INT8_REPORT.md).
 
-## Dataset
+## Dataset and modeling
 
-The [NLBSE 2023 Issue Report Classification dataset](https://github.com/nlbse2023/issue-report-classification) contains **1,418,201** labeled issues:
+The [NLBSE'23 issue classification dataset](https://github.com/nlbse2023/issue-report-classification) contains **1,418,201** labeled issues: **1,275,881** official training and **142,320** official test examples. After exact title/body deduplication and conflicting-label exclusion, **1,221,982** training-source examples remained. Stratified 85/15 splitting (`random_state=42`) produced **1,038,684** training and **183,298** validation examples. The official test remained held out.
 
-| Official split | Issues |
-|---|---:|
-| Training | 1,275,881 |
-| Test | 142,320 |
+Experiments progressed from title-only and title+body TF-IDF to preprocessing ablations, a PyTorch TextCNN, and DistilBERT. The selected E4 preprocessing modifies the issue **body**, preserving the title. Transformer input uses **256 tokens maximum**, a **48-token title budget**, and head/tail allocation for the body. Details: [project plan](docs/PROJECT_PLAN.md) and [progress log](docs/PROGRESS.md).
 
-After exact title–body deduplication and exclusion of conflicting-label groups, **1,221,982** issues remained from the official training source. A stratified 85%/15% split (`random_state=42`) produced **1,038,684 training** and **183,298 validation** examples. The official test set was held out from model development and selection.
-
-Selected preprocessing **E4** transforms only the body; the original title is preserved. The transformer uses a maximum sequence length of **256 tokens**, a **48-token title budget**, and head/tail body allocation.
-
-## Approach
-
-1. **Data feasibility and quality:** audit real issues, remove exact-text duplicates and conflicting-label groups, and verify train/validation integrity.
-2. **Classical NLP:** compare title-only and title+body TF-IDF features, truncation ablations, structured preprocessing, Logistic Regression, and LinearSVC.
-3. **Neural baseline:** train and validate a PyTorch TextCNN.
-4. **Transformer:** fine-tune DistilBERT with gradient accumulation and validation-based checkpoint selection.
-5. **Final evaluation:** run selected-checkpoint inference on the held-out official test and audit saved predictions against the source data.
-6. **Serving:** load the selected checkpoint through FastAPI, benchmark local CPU HTTP requests, and validate a CPU-only Docker image.
-7. **Web application:** implement a GitHub-inspired React/TypeScript/Vite editor with live API classification and automated frontend tests.
-
-Python scripts implement reproducible pipelines, notebooks support exploration, and automated tests cover core behavior. Raw datasets, model weights, and generated evaluation artifacts are excluded from Git.
-
-## Application Architecture
+## Demo architecture
 
 ```text
-Browser (React + TypeScript + Vite)
-  ├── GitHub-inspired issue editor
-  ├── Write / Preview, GitHub-flavored Markdown
-  └── Prediction panel
-          │ POST /predict (JSON)
-          ▼
-FastAPI (Python, Uvicorn)
-  ├── Input validation and CORS
-  ├── E4 structured body preprocessing
-  ├── DistilBERT tokenization (256 tokens)
-  └── PyTorch DistilBERT classifier
-          │
-          ▼
-Predicted label + confidence + class probabilities
+Static React / TypeScript / Vite site
+  ├── GitHub-inspired issue editor and Markdown preview
+  ├── E4 body preprocessing + WordPiece tokenizer (browser)
+  ├── ONNX Runtime Web (WASM) ── fetches INT8 graph from Hugging Face
+  └── Predicted class, confidence, four class probabilities
+
+Independent server path (preserved in this repository)
+  FastAPI /predict → PyTorch or ONNX INT8 CPU backend
+  Docker ONNX-only CPU image (556 MB; no PyTorch)
 ```
 
-The current frontend communicates with FastAPI; **inference does not yet run in the browser**. There is no GitHub authentication or repository-write integration: entered issues are classified, not posted to GitHub.
+The demo **does not create or modify GitHub issues**. The browser model loads on first use; subsequent requests benefit from caching and session reuse. Confidence is an uncalibrated softmax score, not a guarantee of correctness.
 
-## Web Application Features
+## Browser validation and deployment status
 
-- Responsive GitHub-inspired dark interface with issue title and description fields.
-- Markdown authoring toolbar, Write/Preview views, and GitHub-flavored Markdown rendering.
-- Client-side validation matching the API limits: title up to **500 characters**, body up to **20,000 characters**, and at least one nonblank field.
-- A prediction panel displaying the predicted class, confidence, and all four class probabilities.
-- Loading and error feedback, including unavailable or unreachable API states.
-- A typed API client configured through `VITE_API_BASE_URL`, with request cancellation for stale predictions.
+| Evidence | Verified result |
+| --- | --- |
+| Browser ONNX graph compatibility | 3/3 reference cases matched expected labels |
+| Browser E4, token IDs, attention masks vs Python | 3/3 fixtures passed |
+| Local production preview | Model fetched from Hugging Face; real UI prediction succeeded |
+| Frontend checks | Vite build, ESLint, 19 Vitest tests passed |
+| Python checks | 372 pytest tests passed |
+| Static artifact preparation | 12 files, each within 25 MiB; local ONNX graph and unused WASM excluded |
+| Public Cloudflare Pages site | **Pending** — no live URL validated |
 
-The returned confidence is a model softmax score and **has not been calibrated** as a probability of correctness.
+These small parity checks do not constitute full browser accuracy or cross-browser testing. [Browser compatibility](docs/BROWSER_INFERENCE_COMPATIBILITY.md) · [Static deployment](docs/STATIC_DEPLOYMENT.md).
 
-## Technology Stack
+## Local development
 
-**ML and data:** Python 3.11, `uv`, pandas, NumPy, PyArrow, scikit-learn, PyTorch, Hugging Face Transformers, and Kaggle GPU training.
-
-**API and packaging:** FastAPI, Uvicorn, Docker (CPU-only inference image), pytest, and Ruff.
-
-**Frontend:** React, TypeScript, Vite, GitHub-flavored Markdown rendering, Vitest, React Testing Library, ESLint, and Prettier.
-
-**Automation:** GitHub Actions CI for the established Python quality gate. Frontend CI coverage should be verified against the workflow before claiming it.
-
-## Development Setup
+Install the Python development environment and run the backend quality gate:
 
 ```bash
-git clone git@github.com:mazen-alasas/issue-intent.git
-cd issue-intent
 uv sync
-```
-
-Run backend formatting, linting, and tests:
-
-```bash
 uv run ruff check --fix .
 uv run ruff format .
 uv run ruff check .
@@ -106,124 +70,61 @@ uv run ruff format --check .
 uv run pytest -q
 ```
 
-Some evaluation scripts require the source dataset or trained model, which are intentionally not distributed in Git. Audit preserved official-test outputs without rerunning inference:
-
-```bash
-uv run python -m src.models.audit_final_evaluation \
-  --artifacts-dir "$HOME/issue-intent-artifacts/kaggle-backup/extracted/distilbert_final_test" \
-  --source "$HOME/issue-intent-artifacts/kaggle-backup/extracted/official_test_structured_v1.parquet"
-```
-
-These are example local paths, not files automatically present after cloning. The audit validates saved artifacts, but cannot independently establish the exact weights used in the original Kaggle inference run.
-
-## Running the Local Web Application
-
-A trained checkpoint is required. The example path below refers to the development machine; set `ISSUE_INTENT_CHECKPOINT` to your own checkpoint directory.
-
-**Terminal 1 — FastAPI backend:**
-
-```bash
-cd ~/issue-intent
-ISSUE_INTENT_CHECKPOINT="$HOME/issue-intent-artifacts/models/distilbert/best" \
-  uv run uvicorn src.api.main:app --host 127.0.0.1 --port 8000
-```
-
-**Terminal 2 — React frontend:**
-
-```bash
-cd ~/issue-intent/frontend
-npm ci
-cp -n .env.example .env.local
-npm run dev
-```
-
-Open the development URL shown by Vite (typically `http://localhost:5173`). The example environment configures `VITE_API_BASE_URL=http://localhost:8000` for local requests. Both services must be running for the browser to classify issues.
-
-For frontend setup, scripts, tests, and troubleshooting, see the [Frontend README](frontend/README.md).
-
-**Frontend quality commands:**
+For the **browser-only frontend** (no running Python API required), ensure the public model and tokenizer assets are available as described in the [frontend guide](frontend/README.md):
 
 ```bash
 cd frontend
-npm run format
-npm run format:check
-npm run lint
-npm run test
+npm ci
+npm run dev
+```
+
+For a deployment-equivalent local preview:
+
+```bash
+cd frontend
 npm run build
+node scripts/prepare-static-deploy.mjs
+npm run preview -- --host 127.0.0.1
 ```
 
-The last reported frontend checks passed **19 tests across three files**, linting, formatting, and production build. These are historical results and should be rerun before merge.
+Open `http://127.0.0.1:4173/`. The production preview is not a public deployment. To run the optional **FastAPI backend** locally, see the [frontend guide](frontend/README.md) and [Docker deployment](docs/DOCKER_DEPLOYMENT.md). Training data and model checkpoints are not included in Git.
 
-## API and Docker
+## ONNX and serving measurements
 
-The API provides `GET /health` and `POST /predict`. `POST /predict` accepts JSON with `title` and `body`, then returns `label`, `confidence`, and `probabilities` for all four classes. A model checkpoint is loaded during FastAPI startup.
+| Measure | Observed result |
+| --- | --- |
+| FP32 → INT8 ONNX size | 255.54 → 132.44 MiB (48.17% reduction) |
+| Preliminary model-only CPU throughput | 8.63 → 12.30 issues/s (FP32 → INT8, batch 4) |
+| ONNX-only Docker image | 556 MB (vs 1.72 GB transitional image) |
+| Local HTTP benchmark, concurrency 1 | 56.986 requests/s; p95 21.388 ms |
+| Local HTTP benchmark, concurrency 4 | 136.316 requests/s; p95 35.309 ms |
 
-Example request:
+The HTTP benchmark used a repeated short issue, 100 measured requests and 10 warmups per configuration. It is not a production load test or comparable directly with model-only throughput. See [FP32 report](docs/ONNX_FP32_REPORT.md), [INT8 report](docs/ONNX_INT8_REPORT.md), and [HTTP benchmark report](docs/HTTP_BENCHMARK_REPORT.md).
 
-```bash
-curl -s -X POST http://127.0.0.1:8000/predict \
-  -H 'Content-Type: application/json' \
-  -d '{"title":"Application crashes on startup","body":"The application raises a RuntimeError during initialization."}'
-```
+## Project status
 
-The CPU-only Docker image uses a non-root user and expects a **read-only external checkpoint mount**:
-
-```bash
-docker build -t issue-intent-api:local .
-docker run --rm \
-  --name issue-intent-api \
-  -p 127.0.0.1:8001:8000 \
-  -v "$HOME/issue-intent-artifacts/models/distilbert/best:/models/distilbert:ro" \
-  issue-intent-api:local
-```
-
-In another terminal:
-
-```bash
-curl http://127.0.0.1:8001/health
-uv run python scripts/smoke_test_api.py
-```
-
-The last reported Docker image measured **1.64 GB**, and an earlier reported backend quality gate passed **340 tests**. The local HTTP benchmark is documented in [Project Progress](docs/PROGRESS.md); it is not a Docker load test. For complete configuration, see the [Docker Deployment Guide](docs/DOCKER_DEPLOYMENT.md).
-
-## Project Status
-
-| Stage | Status |
-|---|---|
-| Repository Foundation | Completed |
-| Dataset Feasibility and Quality | Completed |
-| Evaluation Protocol | Completed |
-| Classical NLP Baselines | Completed |
-| TextCNN Neural Baseline | Completed |
-| DistilBERT Fine-Tuning | Completed |
-| Official Test Evaluation and Artifact Audit | Completed |
-| FastAPI, Benchmark, Docker, and Python CI | Implemented and tested |
-| React Web Application | Implemented and locally tested; documentation and merge pending |
-| ONNX Export, Quantization, Browser Inference | Planned |
-| Public Static Demo and Portfolio Release | Planned |
+| Milestone | State |
+| --- | --- |
+| Data audit, evaluation protocol, classical baselines | Complete |
+| TextCNN and DistilBERT training | Complete |
+| Official test evaluation and artifact audit | Complete |
+| FastAPI, Docker, CI | Implemented and locally validated |
+| ONNX FP32 export, INT8 quantization, CPU serving | Complete with documented evaluation limits |
+| React application and browser inference | Implemented and locally validated |
+| Static build and Hugging Face model hosting | Validated locally / model published |
+| Cloudflare Pages public deployment | **Pending** |
+| Portfolio release and architecture diagrams | Planned |
 
 ## Documentation
 
-- [Project Plan](docs/PROJECT_PLAN.md)
-- [Progress and Experiment History](docs/PROGRESS.md)
-- [Frontend Guide](frontend/README.md)
-- [Docker Deployment Guide](docs/DOCKER_DEPLOYMENT.md)
-- [TextCNN Baseline Report](docs/TEXTCNN_BASELINE_REPORT.md)
-- [Transformer Experiment Report](docs/TRANSFORMER_EXPERIMENT.md)
-- [Final Evaluation Report](docs/FINAL_EVALUATION_REPORT.md)
-- [DistilBERT Model Card](docs/MODEL_CARD.md)
-- [Dataset Feasibility Notebook](notebooks/01_dataset_feasibility.ipynb)
+- [Frontend setup and inference modes](frontend/README.md)
+- [Static deployment](docs/STATIC_DEPLOYMENT.md)
+- [Project plan](docs/PROJECT_PLAN.md) and [progress history](docs/PROGRESS.md)
+- [Model card](docs/MODEL_CARD.md) and [official evaluation](docs/FINAL_EVALUATION_REPORT.md)
+- [ONNX FP32](docs/ONNX_FP32_REPORT.md) and [ONNX INT8](docs/ONNX_INT8_REPORT.md)
+- [Browser compatibility](docs/BROWSER_INFERENCE_COMPATIBILITY.md)
+- [Docker](docs/DOCKER_DEPLOYMENT.md) and [HTTP benchmark](docs/HTTP_BENCHMARK_REPORT.md)
 
-## Next Planned Work
+## Limitations and licensing
 
-After documenting, verifying, and merging `web-application`, assess **ONNX export**, PyTorch/ONNX prediction parity, INT8 quantization, and **browser-based inference**. If validated, a static-hosted React demo could remove the need for an always-running Python server. This is a proposed path, **not** an implemented or publicly hosted service.
-
-## Evaluation Principles and Limitations
-
-**Micro F1** is the primary overall reporting metric; **Macro F1**, weighted F1, per-class precision/recall/F1, and confusion matrices are also reported. DistilBERT checkpoint selection used validation **Macro F1** to prioritize minority-class performance.
-
-Labels can be ambiguous, the dataset is imbalanced, and token truncation can remove useful context. Generalization to private repositories, other issue trackers, and non-English issues is not established. Softmax confidence has not been calibrated. Public uptime, browser inference latency, and production traffic performance have **not** been measured.
-
-## License
-
-A code license has not yet been selected. Dataset usage and redistribution conditions require review before redistributing dataset-derived artifacts.
+This project does not establish generalization to private repositories, other issue trackers, or non-English issues. Some labels are ambiguous; near-duplicate and repository leakage risks are not fully eliminated. Token budgeting can omit important context. Confidence is not calibrated. The model weights are hosted separately; see the [Hugging Face model card](https://huggingface.co/mazenalasas/issue-intent-onnx) for attribution and upstream-license discussion. **A repository code license has not yet been selected.** Do not assume the base model's license automatically covers all dataset-derived artifacts.

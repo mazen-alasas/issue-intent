@@ -1,95 +1,59 @@
-# issue-intent Frontend
+# issue-intent frontend
 
-React + TypeScript + Vite web interface for the `issue-intent` GitHub Issue Type Classifier.
+React + TypeScript + Vite application with a GitHub-inspired issue editor, Markdown preview, and a four-class DistilBERT prediction panel.
 
-The frontend provides a GitHub-inspired dark New Issue experience. Visitors can write a title and description, preview GitHub-flavored Markdown, and classify the issue using the existing FastAPI/DistilBERT backend. The browser currently **does not run the model locally**.
+**Status (2026-11-19):** Browser-side ONNX INT8 inference works in the local production preview with the graph hosted on [Hugging Face](https://huggingface.co/mazenalasas/issue-intent-onnx). **No public Cloudflare Pages deployment has yet been verified.** The original FastAPI inference path is retained as an alternative.
 
 ## Features
 
-- Responsive dark layout and GitHub-inspired issue editor.
-- Title and body inputs with client-side validation.
-- Write and Preview tabs, Markdown editing toolbar, and GitHub-flavored Markdown output.
-- Typed POST `/predict` requests to a configurable API base URL.
-- Prediction label, confidence, and probabilities for `bug`, `documentation`, `feature`, and `question`.
-- Loading, success, error, and input-validation feedback.
-- Cancellation of superseded requests so stale responses do not replace newer predictions.
+- GitHub-inspired dark issue editor with title and Markdown description, Write/Preview tabs and formatting toolbar.
+- Client-side limits: title up to **500** characters, body up to **20,000** characters, at least one nonblank field.
+- Predicted label, softmax confidence, and probabilities for `bug`, `documentation`, `feature`, `question`.
+- Loading/error states and cancellation of superseded requests.
+- **Browser mode:** E4 preprocessing, WordPiece tokenizer, 256-token limit / 48-token title budget, ONNX Runtime Web (WASM), lazy model loading and session reuse.
+- **API mode:** typed `POST /predict` client, configurable API base URL, independent FastAPI serving.
 
-The application **does not post issues to GitHub** and requires no GitHub account. Model confidence is **not calibrated** and should not be interpreted as a guarantee of correctness.
+The app does **not** authenticate with GitHub or post issues. Model confidence is not calibrated.
 
-## Prerequisites
-
-- Node.js and npm installed locally (Node.js 26.13.1 was used during development).
-- Running `issue-intent` FastAPI backend and access to the selected local DistilBERT checkpoint.
-- The Python development environment managed with `uv`; see the [root README](../README.md).
-
-## Start the Backend
-
-From the repository root, start the API in a separate terminal:
+## Install and run in browser mode
 
 ```bash
-cd ~/issue-intent
+cd frontend
+npm ci
+npm run dev
+```
+
+Set `VITE_INFERENCE_BACKEND=browser` in your local Vite environment if browser mode is not already selected. The model is fetched from Hugging Face for the production configuration; the browser also needs the tokenizer files under `public/models/tokenizer/`. Do not store credentials in `VITE_*` variables: Vite exposes them to the browser.
+
+First inference downloads approximately **132 MiB** of model weights and initializes WASM. Later predictions can be much faster due to cache/session reuse. A slow first request is not necessarily an error.
+
+## Production-equivalent preview
+
+```bash
+cd frontend
+npm run build
+node scripts/prepare-static-deploy.mjs
+npm run lint
+npm run test
+npm run preview -- --host 127.0.0.1
+```
+
+Open `http://127.0.0.1:4173/` and test **Analyze issue**. In browser DevTools, confirm the model downloads from Hugging Face (`/resolve/main/model_int8.onnx`) and tokenizer files load from the site. The preparation script removes local ONNX weights, browser fixtures and an unused oversized WASM asset from `dist/`, then checks the static host's 25 MiB-per-file limit. The reported November 19 run retained **12 files**, all within that limit.
+
+For Cloudflare Pages settings, Git hygiene, and public-site checks, see [Static Deployment](../docs/STATIC_DEPLOYMENT.md).
+
+## Optional FastAPI mode
+
+Set `VITE_INFERENCE_BACKEND=api` and `VITE_API_BASE_URL=http://localhost:8000` in `.env.local`, then run the backend from the repository root with a local checkpoint:
+
+```bash
 ISSUE_INTENT_CHECKPOINT="$HOME/issue-intent-artifacts/models/distilbert/best" \
   uv run uvicorn src.api.main:app --host 127.0.0.1 --port 8000
 ```
 
-Check readiness:
+In another terminal run `npm run dev`. The API implements `GET /health` and `POST /predict`. A request contains `title` and `body`; the response contains `label`, `confidence`, and a `probabilities` object for the four classes. The checkpoint path is machine-specific and is **not** included in Git. For ONNX-only Docker deployment see [Docker guide](../docs/DOCKER_DEPLOYMENT.md).
 
-```bash
-curl http://127.0.0.1:8000/health
-```
-
-The checkpoint directory shown above is specific to the original development machine. Model weights are not committed to Git. The API loads the checkpoint at startup, so a missing checkpoint prevents successful startup.
-
-## Install and Run the Frontend
-
-In another terminal:
-
-```bash
-cd ~/issue-intent/frontend
-npm ci
-cp -n .env.example .env.local
-npm run dev
-```
-
-Open the URL printed by Vite, usually `http://localhost:5173`.
-
-`frontend/.env.example` provides the local API configuration:
-
-```dotenv
-VITE_API_BASE_URL=http://localhost:8000
-```
-
-Override `VITE_API_BASE_URL` in `.env.local` if the backend runs at a different location. Restart Vite after editing the environment file. Do not put secrets in `VITE_*` environment variables: Vite embeds these values in browser-delivered code.
-
-## API Contract
-
-`POST /predict` accepts JSON:
-
-```json
-{
-  "title": "Application crashes on startup",
-  "body": "The application raises a RuntimeError during initialization."
-}
-```
-
-The backend enforces a 500-character title limit, a 20,000-character body limit, and rejects requests in which both fields are blank. Successful responses have this shape:
-
-```json
-{
-  "label": "bug",
-  "confidence": 0.9969,
-  "probabilities": {
-    "bug": 0.9969,
-    "documentation": 0.0001,
-    "feature": 0.0018,
-    "question": 0.0012
-  }
-}
-```
-
-The response shown is an **illustrative rounded example**, not a fixed output contract for every input. The UI displays values returned by the model; it does not generate or calibrate its own probabilities.
-
-## Scripts and Quality Checks
+## Quality checks
 
 ```bash
 npm run format
@@ -99,35 +63,30 @@ npm run test
 npm run build
 ```
 
-- `format` applies Prettier to the frontend.
-- `format:check` verifies formatting without changing files.
-- `lint` runs ESLint.
-- `test` runs the configured Vitest test suite.
-- `build` runs the production Vite/TypeScript build.
+On November 19, the Vite build and ESLint passed and **19 Vitest tests** passed across three files. This test count does not include the manual browser fixture parity runs.
 
-**Last reported result (2026-11-17):** 19 frontend tests passed across three test files; formatting, linting, and build passed. Rerun the commands before merging or releasing. A local browser-to-FastAPI test also produced a successful DistilBERT prediction.
-
-## Key Source Files
+## Code map
 
 | Responsibility | Path |
-|---|---|
-| Application orchestration | `src/App.tsx` |
-| UI and layout styling | `src/App.css`, `src/styles/theme.css`, `src/index.css` |
-| Shared layout | `src/components/layout/` |
-| Markdown issue editor | `src/features/issue-editor/` |
-| Prediction display and API client | `src/features/classification/` |
-| Application tests | `src/App.test.tsx` |
-| API client tests | `src/features/classification/api.test.ts` |
-| Editor tests | `src/features/issue-editor/IssueEditor.test.tsx` |
+| --- | --- |
+| Main application | `src/App.tsx` |
+| UI and prediction display | `src/features/classification/PredictionPanel.tsx` |
+| Inference selection and API contract | `src/features/classification/api.ts` |
+| Browser inference | `src/browser/inference.ts` |
+| E4 preprocessing | `src/browser/e4.ts` |
+| Tokenization and input encoding | `src/browser/encoding.ts` |
+| Browser compatibility / parity harnesses | `src/browser-smoke.ts`, `src/browser-parity.ts` |
+| Markdown editor | `src/features/issue-editor/` |
+| Static build cleanup | `scripts/prepare-static-deploy.mjs` |
 
 ## Troubleshooting
 
-- **Network error:** Confirm FastAPI is listening on the configured host/port and the `VITE_API_BASE_URL` matches it.
-- **CORS or private-network preflight error:** Check that the API allows the Vite origin; `ISSUE_INTENT_CORS_ORIGINS` is used by the backend. Default local origin: `http://localhost:5173`.
-- **503 / unavailable model:** Check API startup logs and the `ISSUE_INTENT_CHECKPOINT` directory.
-- **422 validation error:** Ensure at least one nonblank field and stay within the field limits.
-- **Vite environment changes not reflected:** Restart the development server after modifying `.env.local`.
+- **First prediction slow:** the graph must download and the ONNX WASM session must initialize; compare first and subsequent predictions.
+- **Model download blocked:** inspect Hugging Face redirects and CORS in DevTools; use `/resolve/main/`, not `/blob/main/`.
+- **Tokenizer 404:** check `public/models/tokenizer/tokenizer.json`, `tokenizer_config.json` and static output.
+- **Cloudflare oversized asset:** run the post-build preparation script; never upload the local ONNX graph in `dist/`.
+- **API mode fails:** check the backend health endpoint, `VITE_API_BASE_URL`, CORS and checkpoint path.
 
-## Deployment Status and Next Steps
+## Validation scope
 
-The current application has been validated locally. There is **no verified public deployment** and no completed browser-side model inference. A future separate branch will assess FP32 ONNX export, parity validation, INT8 quantization, porting preprocessing and tokenization to JavaScript, and static web hosting. The tested FastAPI and Docker implementations remain available independently of that planned work.
+Three browser ONNX fixtures matched expected labels; three browser E4/IDs/masks fixtures matched Python. A local production preview successfully predicted from the Hugging Face-hosted graph without FastAPI. These are representative checks, not full INT8 official-test evaluation or cross-browser performance guarantees. Public hosting remains pending.

@@ -1,5 +1,29 @@
 # issue-intent — Project Plan
 
+## Current status and next release gate — November 19, 2026
+
+The previous roadmap and dated plans below are retained as an **engineering history**, not as instructions to repeat completed work. The web application merged to `main` in PR #8, ONNX work in PR #9, and browser integration was committed to `main` at `7c389df`. Work is now on `static-deployment` before its PR.
+
+| Stage | Verified state |
+| --- | --- |
+| Data quality, evaluation protocol, classical and neural experiments | Complete |
+| Selected DistilBERT official test | Micro F1 0.886558; Macro F1 0.791175 (PyTorch) |
+| FP32 ONNX export and INT8 quantization | Complete; INT8 quality assessed on a **14,040-row non-random prefix**, not full test |
+| ONNX-only CPU Docker | 556 MB; PyTorch absent; `/health` and `/predict` passed |
+| Docker HTTP benchmark | 56.986 req/s (C1); 136.316 req/s (C4), 100 short requests per run |
+| Browser graph and E4/tokenizer parity | 3/3 fixtures each; existing React UI integrated |
+| Local production preview | Passed; graph fetched from Hugging Face; 19 frontend tests passed |
+| Static build preparation | 12 output files, all within 25 MiB |
+| **Public Cloudflare Pages deployment** | **Pending — no public URL verified** |
+
+**Next steps:** finish documentation and Git review on `static-deployment`; open PR and merge; configure Cloudflare Pages (`frontend` root, `npm run build && node scripts/prepare-static-deploy.mjs`, `dist`, `VITE_INFERENCE_BACKEND=browser`); test a new public-browser session, including Hugging Face CORS/model fetch and tokenizer assets; record the real URL and deployment date; then finalize the portfolio narrative and Excalidraw diagrams. See [Static Deployment](STATIC_DEPLOYMENT.md).
+
+**Evidence boundaries:** PyTorch official-test F1 must not be attributed to INT8; three browser fixtures are not a full parity/accuracy evaluation; Docker microbenchmarks are not production SLAs.
+
+---
+
+## Historical project plan and experiment decisions
+
 **Updated:** 2026-11-18
 
 **Project:** `issue-intent`
@@ -27,15 +51,15 @@ The project emphasizes reproducible data preparation, leakage-aware evaluation, 
 | API Serving & Benchmark | `api-serving` | FastAPI, inference tests, local HTTP benchmark | Completed and committed |
 | Docker Deployment | `api-serving` | CPU-only image, external checkpoint mount, smoke tests | Completed and committed (`19497d1`) |
 | GitHub Actions CI | `api-serving` | Automated lint, formatting, and checkpoint-independent tests | Implemented; first run passed (`3f99725`) |
-| Web Application | `web-application` | React/TypeScript/Vite issue editor, Markdown preview, live inference, frontend tests | Implemented and committed; documentation and merge pending |
-| ONNX Browser Inference | `onnx-browser-inference` | FP32 ONNX validated, INT8 CPU candidate assessed; opt-in ONNX API backend | In progress; browser inference and static deployment not implemented |
+| Web Application | `web-application` | React/TypeScript/Vite issue editor, Markdown preview, live inference, frontend tests | Implemented, merged into main (PR #8) |
+| ONNX Browser Inference | `onnx-browser-inference` | FP32 ONNX validated, INT8 CPU candidate assessed; opt-in ONNX API backend | ONNX export, INT8 and browser inference implemented; PR #9 merged; public hosting pending |
 | Portfolio Release | `portfolio-release` (proposed) | Reproducibility, diagrams, polished project narrative | Planned |
 
 **Optional:** Similar Issue Retrieval and Cloud Deployment, only if justified by measured needs.
 
-**Branch hygiene:** Confirmed local branch `onnx-browser-inference` at `1cf7b28` before the ONNX INT8 update (2026-11-18); changes were uncommitted. Main included the web-application merge `cb38866`. Do not claim this ONNX work is merged.
+**Historical Git snapshot (2026-11-18):** `onnx-browser-inference` was previously at `1cf7b28` with uncommitted changes. This snapshot is superseded by the merged ONNX branch (PR #9) and subsequent browser integration on `main` (`7c389df`).
 
-### Historical stage: Web Application — Implemented and Merged
+### Archived implementation checklist — Web Application (completed and merged)
 
 **Goal:** Close the implemented React + FastAPI application milestone without changing the frozen DistilBERT model or evaluation results.
 
@@ -50,16 +74,16 @@ The project emphasizes reproducible data preparation, leakage-aware evaluation, 
 
 **Last reported validation:** 19 frontend tests passed in 3 files; ESLint, formatting, and Vite build passed; a real browser-to-API classification succeeded. A subsequent local API call returned `bug` with confidence `0.9969459176063538`. These observations do not replace the final pre-merge test run.
 
-**Not implemented in this stage:** hosted public link, ONNX inference, model quantization, Docker Compose, or end-to-end browser automation against a deployed server. GitHub Actions CI exists for earlier Python code; confirm whether frontend jobs are configured before claiming frontend CI coverage.
+**At the time of this historical web-application stage:** hosted public link, ONNX inference, quantization and Docker Compose were not implemented. ONNX and browser inference were completed in later stages; public hosting remains pending. GitHub Actions CI exists for earlier Python code; confirm whether frontend jobs are configured before claiming frontend CI coverage.
 
-**Closure checklist:**
+**Archived closure checklist (completed in subsequent commits):**
 
 1. Update the root and frontend READMEs and the progress/plan documents.
 2. Run the Python and frontend quality gates, check diffs, and commit documentation on `web-application`.
 3. Push the branch, inspect GitHub Actions results, and merge to `main` after verification.
 4. Start ONNX export and browser-inference assessment from the refreshed `main` in a separate branch.
 
-**Current ONNX milestone:** FP32 export/parity and dynamic INT8 assessment completed. INT8 CPU is an opt-in deployment candidate based on a 14,040-row partial prefix (not a full official-test evaluation). Implement and test optional ONNX API inference before Docker changes; browser-side inference/tokenization parity and static hosting remain future work. See `docs/ONNX_INT8_REPORT.md`.
+**Subsequent completion:** ONNX INT8 API, ONNX-only Docker, browser WASM inference and tokenizer parity were implemented and locally verified. The 14,040-row INT8 evaluation remains partial; the public static site is pending. See `docs/ONNX_INT8_REPORT.md` and `docs/STATIC_DEPLOYMENT.md`.
 
 ## 3. Engineering Principles
 - Python 3.11, `uv` for environment/dependencies, and a flat `src/` structure.
@@ -269,10 +293,10 @@ Post-build SHA-256, row count, and schema verification passed for both files. Th
 - Perform per-class error analysis, confusion analysis, runtime/model-size measurements, and write a model card.
 - Clearly separate competition benchmark numbers from project-measured results.
 
-### API Serving, Web Application, and Portfolio
-- `api-serving`: FastAPI endpoints, request validation, benchmark, CPU-only Docker image, smoke tests, and GitHub Actions CI implemented. Docker commit `19497d1`; CI commit `3f99725`; first CI run passed. Merge into `main` remains unconfirmed.
-- `web-application`: implemented React/TypeScript/Vite interface, functional GFM editor, live prediction integration, and frontend tests; documentation closure and merge pending. Docker Compose not confirmed implemented.
-- `onnx-browser-inference` (proposed): FP32 export, parity checks, INT8 evaluation, browser inference, and static-hosting feasibility.
+### API Serving, Web Application, and Portfolio (historical roadmap)
+- `api-serving`: FastAPI endpoints, request validation, benchmark, CPU-only Docker image, smoke tests, and GitHub Actions CI implemented. Docker commit `19497d1`; CI commit `3f99725`; first CI run passed. The earlier merge status was unconfirmed at that time; later work was merged.
+- `web-application`: implemented React/TypeScript/Vite interface, functional GFM editor, live prediction integration, and frontend tests; subsequently merged into `main` (PR #8). Docker Compose not confirmed implemented.
+- `onnx-browser-inference` (now implemented and merged; original scope): FP32 export, parity checks, INT8 evaluation, browser inference, and static-hosting feasibility.
 - `portfolio-release`: finalize reproducibility, limitations, documentation, and separate Excalidraw architecture/data-flow diagrams after the selected demo strategy is validated.
 
 - Keep deployment claims limited to environments actually tested; do not imply public hosting or production readiness.
@@ -320,7 +344,7 @@ Post-build SHA-256, row count, and schema verification passed for both files. Th
 | Docker guide | `docs/DOCKER_DEPLOYMENT.md` |
 | Roadmap and policies | `docs/PROJECT_PLAN.md` |
 
-## 10. Commands for Stage Transitions
+## 10. Historical Commands for Stage Transitions
 ```bash
 # Inspect current Git state before switching or merging.
 git branch --show-current
@@ -338,7 +362,7 @@ uv run pytest -q
 # uv run python -m src.preprocessing.build_dataset
 ```
 
-Historical note: full-scale classical training and E0–E5 ablations are complete. FastAPI, Docker, and the first CI run are complete. The web application is now implemented; documentation closure and merge are pending. ONNX browser inference is the proposed next technical milestone.
+Historical note: full-scale classical training and E0–E5 ablations, FastAPI, Docker, CI, the web application and ONNX browser inference were subsequently completed. Public static deployment is the remaining technical milestone.
 
 ## Full-scale classical baselines — November 2026
 Dataset: structured_v1 (E4, body-only preprocessing).
@@ -393,7 +417,7 @@ DistilBERT checkpoint selection used validation **Macro F1**; the overall report
 - Local CPU HTTP benchmark observations are in [`PROGRESS.md`](PROGRESS.md), Section 10; they are not Docker load-test results.
 - Full Docker instructions: [`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md).
 
-### 11.4 Current closure and next milestones — 2026-11-17
+### 11.4 Historical closure notes — 2026-11-17
 
 1. Finish documentation for React, TypeScript, Vite, functional Markdown editing, API integration, and CORS handling.
 2. Rerun Ruff, formatting, pytest, frontend formatting, ESLint, Vitest, and Vite build.

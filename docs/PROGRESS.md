@@ -1,55 +1,37 @@
 # Project Progress
 
-**Project:** `issue-intent`
+**Project:** `issue-intent` · **Updated:** November 19, 2026 · **Working branch:** `static-deployment` (before PR)
 
-**Repository:** `git@github.com:mazen-alasas/issue-intent.git`
+## Current milestone — Static portfolio deployment
 
-**Local path:** `/home/mazen/issue-intent`
+**Local production preview verified; public hosting pending.** React/TypeScript/Vite now runs the selected INT8 DistilBERT graph in the browser with ONNX Runtime Web (WASM). E4 preprocessing, WordPiece tokenization, title/body budgeting and the existing prediction panel were retained. The graph is hosted at [mazenalasas/issue-intent-onnx](https://huggingface.co/mazenalasas/issue-intent-onnx); the static site does not need a running FastAPI server.
 
-**Last updated:** 2026-11-18
+**November 19 verification:**
 
-**Current stage:** `onnx-browser-inference` — FP32 ONNX validated; INT8 CPU candidate evaluated on a 14,040-row test prefix; optional ONNX API backend prepared, pending local integration checks.
+- Browser ONNX graph compatibility **3/3** reference cases; E4, input IDs and attention mask parity **3/3** fixtures.
+- Local production preview successfully fetched the graph from Hugging Face and classified an issue in the React UI. First request was slower than repeated predictions (download/cache/session reuse).
+- `npm run build`, `npm run lint` and `npm run test` passed (**19 frontend tests**). Python suite passed **372 tests**.
+- Static preparation excluded local ONNX weights, unused oversized WASM and browser fixtures: **12 files**, all within **25 MiB** each.
+- **Cloudflare Pages is not yet deployed or publicly validated.** The `static-deployment` PR has not yet been opened at this point.
 
-**Last completed branch:** `api-serving` (Docker and CI work recorded as committed; present `web-application` branch is based on the incorporated serving work).
+**Related completed milestones:**
 
-**Current branch:** `onnx-browser-inference` (HEAD `1cf7b28` before this update, confirmed 2026-11-18). ONNX changes were uncommitted at the time of review; do not assume they are merged.
+| Milestone | Result |
+| --- | --- |
+| Official PyTorch DistilBERT test | Micro F1 0.886558; Macro F1 0.791175; 142,320 issues |
+| ONNX FP32/INT8 graph sizes | 255.54 / 132.44 MiB |
+| Partial INT8 evaluation | 14,040 non-random first test rows; Micro F1 0.881339; Macro F1 0.781291 |
+| ONNX-only CPU Docker | 556 MB, PyTorch absent; HTTP smoke tests passed |
+| HTTP benchmark | 56.986 req/s C1; 136.316 req/s C4; 100 short requests/run |
+| React browser demo | 3/3 graph fixtures; 3/3 tokenizer fixtures; local preview passed |
 
-## ONNX milestone update — 2026-11-18
+The **official full-test results apply to PyTorch**, not to the INT8 graph. Browser fixtures and local HTTP benchmarks are limited tests, not production accuracy or availability guarantees.
 
-- FP32 ONNX export and parity validated; see `docs/ONNX_FP32_REPORT.md`.
-- Dynamic INT8 model: 132.44 MiB versus 255.54 MiB FP32 (48.17% reduction).
-- Partial official-test prefix (14,040/142,320): FP32 Micro/Macro F1 0.881054/0.783052; INT8 0.881339/0.781291; prediction agreement 98.2906%. **Not a full INT8 official-test evaluation.**
-- Earlier CPU batch-4 benchmark observed 1.43× INT8 throughput versus FP32 (model-only).
-- ONNX INT8 CPU is an **opt-in deployment candidate**, not the default Docker backend. PyTorch remains the default API backend until end-to-end validation and packaging.
-- See `docs/ONNX_INT8_REPORT.md` for provenance, caveats and the next gate.
+**Next:** review docs and Git diff; merge `static-deployment`; connect Cloudflare Pages; verify the public URL from a fresh browser, model download, CORS and tokenizer loading; update links and date; then prepare the portfolio release and diagrams.
 
-## Executive Status
+## Historical progress and experiment record
 
-Repository foundation, data preparation and quality, evaluation protocol, structured preprocessing, full-scale classical baselines, TextCNN, DistilBERT fine-tuning, and official-test final evaluation are complete. The `final-evaluation` branch was merged into `main`.
-
-The selected DistilBERT checkpoint (epoch 3, chosen by validation Macro F1) achieved **0.886558 Micro F1** and **0.791175 Macro F1** on the 142,320-row official test set. Saved evaluation outputs passed local integrity and source-alignment audits; those audits do not cryptographically prove the provenance of the original Kaggle inference weights.
-
-The `api-serving` milestone delivered the reusable inference engine, FastAPI endpoints, HTTP benchmarking, CPU-only Docker packaging, an API smoke test, and GitHub Actions CI. The Docker and CI commits recorded in the project plan are `19497d1` and `3f99725`. Local Docker validation reported **340 passing Python tests** and a **1.64 GB** image; these are historical observations, not a current rerun.
-
-The active `web-application` branch contains the React/TypeScript/Vite UI, functional GitHub-flavored Markdown editor, classification API integration, and frontend tests. The last reported frontend gate passed **19 tests across 3 files**, ESLint, Prettier, and Vite production build. A successful real-checkpoint browser prediction and a subsequent local API test were reported. GitHub Actions CI was implemented for the earlier serving milestone; do not assume frontend validation is covered by that workflow without inspecting `.github/workflows/ci.yml`.
-
-**Next:** update web-application documentation, rerun Python and frontend checks, commit, push, verify CI, and merge into `main`. ONNX export, quantization, browser-side inference, and public static hosting are proposed follow-up work, not completed capabilities.
-
-## Environment and Conventions
-
-- WSL2 Ubuntu; Python 3.11.16 managed by `uv` (earlier reported `uv 0.12.19`).
-
-- Earlier verified tools: Git 2.43.0, pytest 9.2.0, Ruff 0.17.3; versions may have changed.
-
-- NVIDIA GeForce GTX 1650 Ti, reported 4 GB VRAM; local memory constraints require conservative training plans.
-
-- `pyarrow==26.0.1` added with `uv add pyarrow` for chunked Parquet generation.
-
-- Flat `src/` layout; exploratory notebooks, production-style scripts, focused tests, and tracked documentation.
-
-- Use `random_state=42` for established sampling/splitting experiments.
-
-- Keep raw datasets, generated CSV/Parquet datasets, experiment outputs, and model artifacts out of Git.
+The dated sections below document the actual sequence of experiments and prior plans. Any earlier “current stage”, “next”, or “pending merge” language reflects its original time and is **superseded by the current milestone above**. Retained historical details are not instructions to rerun experiments.
 
 ## 1. Repository Foundation — Completed
 
@@ -799,11 +781,11 @@ The workflow completed successfully on GitHub-hosted infrastructure without requ
 - [x] Run CI successfully on GitHub Actions.
 - [x] API-serving work incorporated into the development history used by `web-application` (separate merge evidence should be checked from Git history).
 
-## 13. Web Application — Implemented and Tested; Merge Pending
+## 13. Web Application — Completed and Merged (historical milestone)
 
 **Branch:** `web-application`  
 **Recorded HEAD (2026-11-17):** `6ad5e02` — `feat: integrate React frontend with classification API`  
-**Status:** Application implementation committed and locally tested. Documentation closure and merge into `main` are pending.
+**Historical status:** Application was locally tested before PR #8; it was subsequently merged into `main`. Browser inference was implemented in later work.
 
 ### 13.1 Scope and implementation
 
@@ -882,14 +864,14 @@ uv run ruff format --check .
 uv run pytest -q
 ```
 
-### 13.4 Remaining closure actions
+### 13.4 Original closure checklist (completed; archived)
 
 1. Commit the updated root README, frontend README, progress log, and project plan on `web-application`.
 2. Run both quality gates and inspect `git diff --check`, `git status`, and the final commit history.
 3. Push `web-application`, check applicable GitHub Actions jobs, and merge into `main` only after validation.
 4. Confirm local `main` and remote `main` are synchronized before starting a new branch.
 
-### 13.5 Next proposed milestone — ONNX browser inference
+### 13.5 Original ONNX proposal (subsequently implemented)
 
 1. Export the frozen DistilBERT checkpoint from PyTorch to FP32 ONNX without retraining.
 2. Compare logits, predicted labels, and performance on representative examples against the existing PyTorch pipeline.
@@ -897,4 +879,4 @@ uv run pytest -q
 4. Reproduce structured E4 preprocessing and tokenization in the browser and add parity tests.
 5. If accuracy and runtime are acceptable, integrate ONNX Runtime Web and deploy the React demo to free static hosting.
 
-ONNX export, quantization, browser inference, public deployment, and Docker Compose have **not** been verified as implemented in this milestone. The established FastAPI backend and CPU-only Docker image remain preserved as independent server-inference implementations.
+At the time of this web-application milestone, ONNX and browser inference were not yet implemented. They were subsequently completed and validated locally; **public Cloudflare Pages deployment and Docker Compose remain unverified**. FastAPI and ONNX-only Docker remain independent server paths.
