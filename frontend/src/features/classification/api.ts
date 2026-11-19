@@ -15,6 +15,11 @@ const LABELS: IssueLabel[] = ['bug', 'documentation', 'feature', 'question']
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
 
+// Production static demo uses browser inference; local development preserves the API workflow.
+// Override with VITE_INFERENCE_BACKEND=api or browser when needed.
+export const INFERENCE_BACKEND = import.meta.env.VITE_INFERENCE_BACKEND ||
+  (import.meta.env.PROD ? 'browser' : 'api')
+
 export class ApiError extends Error {
   readonly status?: number
 
@@ -58,6 +63,14 @@ export async function predictIssue(
   payload: PredictRequest,
   signal?: AbortSignal,
 ): Promise<PredictResponse> {
+  if (INFERENCE_BACKEND === 'browser') {
+    const { predictBrowserIssue } = await import('../../browser/inference')
+    return predictBrowserIssue(payload, signal)
+  }
+  if (INFERENCE_BACKEND !== 'api') {
+    throw new ApiError(`Unsupported inference backend: ${INFERENCE_BACKEND}`)
+  }
+
   let response: Response
 
   try {

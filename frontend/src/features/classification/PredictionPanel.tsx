@@ -1,5 +1,5 @@
 import { BookOpen, Bug, CircleHelp, Cpu, Info, Lightbulb, LoaderCircle } from 'lucide-react'
-import type { IssueLabel, PredictResponse } from './api'
+import { INFERENCE_BACKEND, type IssueLabel, type PredictResponse } from './api'
 
 type AnalysisState =
   | { status: 'idle' }
@@ -100,7 +100,7 @@ function PredictionResult({ result }: { result: PredictResponse }) {
         <span>
           <Cpu size={17} /> Powered by DistilBERT
         </span>
-        <span className="version-tag">Live inference</span>
+        <span className="version-tag">{INFERENCE_BACKEND === 'browser' ? 'In-browser inference' : 'Live inference'}</span>
       </div>
     </div>
   )
@@ -130,7 +130,9 @@ export function PredictionPanel({ analysis }: Props) {
           {analysis.status === 'loading' && (
             <div className="analysis-loading" role="status">
               <LoaderCircle size={20} className="loading-spinner" />
-              <span>Analyzing issue with DistilBERT...</span>
+              <span>{INFERENCE_BACKEND === 'browser'
+                  ? 'Analyzing with DistilBERT in your browser… First use downloads the model.'
+                  : 'Analyzing issue with DistilBERT...'}</span>
             </div>
           )}
 
