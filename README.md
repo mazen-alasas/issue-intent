@@ -4,7 +4,7 @@
 
 `issue-intent` classifies English GitHub issue reports into **bug**, **feature**, **question**, and **documentation**. The project follows the full ML engineering lifecycle: dataset audits, reproducible splits, classical and neural baselines, DistilBERT fine-tuning, held-out evaluation, CPU serving, ONNX quantization, and a GitHub-inspired React demo.
 
-**Status (November 19, 2026):** The browser demo and local **production preview** work with the INT8 model hosted on [Hugging Face](https://huggingface.co/mazenalasas/issue-intent-onnx), without a Python server. **Cloudflare Pages is not yet deployed or verified.** The `static-deployment` branch is being prepared for review and merge. See the [static deployment guide](docs/STATIC_DEPLOYMENT.md).
+**Status (November 19, 2026):** [Live browser demo](https://issue-intent.pages.dev/) deployed on Cloudflare Pages. The static React application runs INT8 ONNX inference in the browser and fetches the public model from [Hugging Face](https://huggingface.co/mazenalasas/issue-intent-onnx); no Python inference server is required for the demo. The owner successfully tested predictions against several real GitHub issues, including issues from external repositories. This is a manual smoke test, **not** a new benchmark or measured generalization score. See the [static deployment guide](docs/STATIC_DEPLOYMENT.md).
 
 ## Results
 
@@ -53,7 +53,7 @@ The demo **does not create or modify GitHub issues**. The browser model loads on
 | Frontend checks | Vite build, ESLint, 19 Vitest tests passed |
 | Python checks | 372 pytest tests passed |
 | Static artifact preparation | 12 files, each within 25 MiB; local ONNX graph and unused WASM excluded |
-| Public Cloudflare Pages site | **Pending** — no live URL validated |
+| Public Cloudflare Pages site | **Deployed** — owner verified UI and issue predictions on November 19, 2026; no automated cross-browser validation claimed |
 
 These small parity checks do not constitute full browser accuracy or cross-browser testing. [Browser compatibility](docs/BROWSER_INFERENCE_COMPATIBILITY.md) · [Static deployment](docs/STATIC_DEPLOYMENT.md).
 
@@ -87,7 +87,7 @@ node scripts/prepare-static-deploy.mjs
 npm run preview -- --host 127.0.0.1
 ```
 
-Open `http://127.0.0.1:4173/`. The production preview is not a public deployment. To run the optional **FastAPI backend** locally, see the [frontend guide](frontend/README.md) and [Docker deployment](docs/DOCKER_DEPLOYMENT.md). Training data and model checkpoints are not included in Git.
+Open `http://127.0.0.1:4173/`. The same frontend is publicly deployed at [issue-intent.pages.dev](https://issue-intent.pages.dev/). To run the optional **FastAPI backend** locally, see the [frontend guide](frontend/README.md) and [Docker deployment](docs/DOCKER_DEPLOYMENT.md). Training data and model checkpoints are not included in Git.
 
 ## ONNX and serving measurements
 
@@ -112,8 +112,8 @@ The HTTP benchmark used a repeated short issue, 100 measured requests and 10 war
 | ONNX FP32 export, INT8 quantization, CPU serving | Complete with documented evaluation limits |
 | React application and browser inference | Implemented and locally validated |
 | Static build and Hugging Face model hosting | Validated locally / model published |
-| Cloudflare Pages public deployment | **Pending** |
-| Portfolio release and architecture diagrams | Planned |
+| Cloudflare Pages public deployment | **Live; owner smoke-tested** |
+| Portfolio release and architecture diagrams | Finalization in progress |
 
 ## Documentation
 

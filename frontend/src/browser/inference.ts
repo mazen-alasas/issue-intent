@@ -62,11 +62,10 @@ export async function predictBrowserIssue(
   }
   const feeds = {
     input_ids: new ort.Tensor('int64', BigInt64Array.from(encoding.input_ids, BigInt), [1, length]),
-    attention_mask: new ort.Tensor(
-      'int64',
-      BigInt64Array.from(encoding.attention_mask, BigInt),
-      [1, length],
-    ),
+    attention_mask: new ort.Tensor('int64', BigInt64Array.from(encoding.attention_mask, BigInt), [
+      1,
+      length,
+    ]),
   }
   const outputs = await session.run(feeds)
   checkAbort(signal)

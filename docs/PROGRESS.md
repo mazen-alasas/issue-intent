@@ -1,10 +1,10 @@
 # Project Progress
 
-**Project:** `issue-intent` · **Updated:** November 19, 2026 · **Working branch:** `static-deployment` (before PR)
+**Project:** `issue-intent` · **Updated:** November 19, 2026 · **Current branch:** `main` (PR #10 merged; final portfolio review pending)
 
-## Current milestone — Static portfolio deployment
+## Current milestone — Live static deployment and release finalization
 
-**Local production preview verified; public hosting pending.** React/TypeScript/Vite now runs the selected INT8 DistilBERT graph in the browser with ONNX Runtime Web (WASM). E4 preprocessing, WordPiece tokenization, title/body budgeting and the existing prediction panel were retained. The graph is hosted at [mazenalasas/issue-intent-onnx](https://huggingface.co/mazenalasas/issue-intent-onnx); the static site does not need a running FastAPI server.
+**Public deployment completed and manually smoke-tested by the project owner.** React/TypeScript/Vite now runs the selected INT8 DistilBERT graph in the browser with ONNX Runtime Web (WASM). E4 preprocessing, WordPiece tokenization, title/body budgeting and the existing prediction panel were retained. The graph is hosted at [mazenalasas/issue-intent-onnx](https://huggingface.co/mazenalasas/issue-intent-onnx); the static site does not need a running FastAPI server.
 
 **November 19 verification:**
 
@@ -12,7 +12,7 @@
 - Local production preview successfully fetched the graph from Hugging Face and classified an issue in the React UI. First request was slower than repeated predictions (download/cache/session reuse).
 - `npm run build`, `npm run lint` and `npm run test` passed (**19 frontend tests**). Python suite passed **372 tests**.
 - Static preparation excluded local ONNX weights, unused oversized WASM and browser fixtures: **12 files**, all within **25 MiB** each.
-- **Cloudflare Pages is not yet deployed or publicly validated.** The `static-deployment` PR has not yet been opened at this point.
+- **Cloudflare Pages live:** [https://issue-intent.pages.dev/](https://issue-intent.pages.dev/) was deployed and manually tested on November 19, 2026. The owner compared predictions for multiple real GitHub issues against their existing issue labels. This is not a controlled evaluation, and no cross-browser or production-uptime guarantee was established. PR #10 merged `static-deployment` into `main` (`735dcbd`).
 
 **Related completed milestones:**
 
@@ -27,7 +27,7 @@
 
 The **official full-test results apply to PyTorch**, not to the INT8 graph. Browser fixtures and local HTTP benchmarks are limited tests, not production accuracy or availability guarantees.
 
-**Next:** review docs and Git diff; merge `static-deployment`; connect Cloudflare Pages; verify the public URL from a fresh browser, model download, CORS and tokenizer loading; update links and date; then prepare the portfolio release and diagrams.
+**Next:** finish the repository hygiene and documentation audit, add frontend CI coverage, verify a clean build and full quality gates, then prepare Excalidraw architecture diagrams and portfolio materials.
 
 ## Historical progress and experiment record
 

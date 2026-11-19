@@ -16,7 +16,7 @@
 | Selected epoch | 3 |
 | Checkpoint label metadata | Verified locally against the project label order |
 | Evaluation status | Official held-out test evaluated; saved artifacts audited |
-| Deployment status | Not deployed |
+| Deployment status | Public browser demo serves an INT8 ONNX export on [Cloudflare Pages](https://issue-intent.pages.dev/); PyTorch checkpoint is not hosted as a public server |
 
 The model predicts one intent category from the title and body of a GitHub issue.
 

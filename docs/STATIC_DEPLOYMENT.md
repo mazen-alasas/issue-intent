@@ -1,6 +1,6 @@
 # Static Portfolio Deployment — Issue Intent
 
-**Status:** Local production preview verified on **November 19, 2026**. **No public Cloudflare Pages deployment has yet been confirmed.**
+**Status:** [Public Cloudflare Pages demo](https://issue-intent.pages.dev/) deployed and manually smoke-tested by the project owner on **November 19, 2026**. Local production preview, browser fixtures, and build-size checks were separately verified.
 
 ## Goal and architecture
 
@@ -46,22 +46,24 @@ npm run preview -- --host 127.0.0.1
 
 Open `http://127.0.0.1:4173/` and test a prediction. Inspect DevTools **Network** to verify the ONNX graph is fetched from Hugging Face, not `localhost`, and that tokenizer assets load from `/models/tokenizer/`. Test once in a clean profile/incognito window to avoid relying on a previous model cache.
 
-## Cloudflare Pages configuration (planned, not yet deployed)
+## Cloudflare Pages configuration (deployed)
 
-After reviewing and merging `static-deployment` to `main`, connect the GitHub repository to Cloudflare Pages and configure:
+The `static-deployment` branch was merged into `main` via PR #10 (`735dcbd`). The production deployment uses these settings:
 
 | Setting | Value |
 | --- | --- |
 | Project root directory | `frontend` |
 | Production branch | `main` |
-| Framework | React (Vite) / None |
+| Framework | React (Vite) |
 | Build command | `npm run build && node scripts/prepare-static-deploy.mjs` |
 | Output directory | `dist` |
-| Environment variable | `VITE_INFERENCE_BACKEND=browser` |
+| Inference backend | Browser mode is the built-in production default; `VITE_INFERENCE_BACKEND=browser` may be set explicitly |
 
-Check Cloudflare's UI if the build directory is specified relative to repository root rather than configured project root; in that case use `frontend/dist` as appropriate. Node.js must meet the project's Vite 8 engine requirements. Never add Hugging Face tokens for this public model.
+The output directory is relative to the configured `frontend` root. Node.js must meet the Vite version's engine requirements. No Hugging Face token is required for the public model.
 
-Once published, verify using a brand-new browser session: site loads, JS/WASM assets load successfully, `model_int8.onnx` downloads via Hugging Face without CORS error, and `/predict` is **not** called for browser inference. Confirm prediction and probability display, then record the actual public URL and deployment date in `README.md` and `docs/PROGRESS.md`.
+**Observed manual public check (November 19, 2026):** the project owner opened the deployed site and classified multiple existing GitHub issues, including external-repository issues; the predicted labels agreed with the issues' existing labels in those examples. This confirms working end-to-end predictions in the tested browser but is **not** a controlled metric, automated cross-browser test, or uptime audit.
+
+**Recommended release smoke check:** revisit from a fresh browser session; confirm the JS/WASM and tokenizer assets load, model weights resolve from Hugging Face, no `/predict` API call is required, and both predicted label and probability breakdown render. Cold-load timings and broad cross-browser behavior have not been measured.
 
 ## Failure cases
 
@@ -71,6 +73,6 @@ Once published, verify using a brand-new browser session: site loads, JS/WASM as
 - **Slow first prediction:** expected for a large first download and WASM session startup; distinguish initial download from subsequent cached requests.
 - **Server unavailable:** the browser demo should not depend on FastAPI. Leave `VITE_INFERENCE_BACKEND=browser` in Cloudflare configuration.
 
-## Planned closure
+## Remaining release tasks
 
-After first successful public deployment, document the public link, CI build, fresh-browser smoke test and any observed cold-start behavior, then proceed to portfolio release and architecture diagrams. Do not mark these as verified until they have occurred.
+Complete repository cleanup, updated CI coverage, and portfolio/architecture documentation. Keep release checks distinct from the already completed first public deployment; do not claim unmeasured cross-browser support, long-term availability, or new accuracy metrics.
