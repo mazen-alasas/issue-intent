@@ -2,7 +2,13 @@ import type { PredictRequest, PredictResponse, IssueLabel } from '../features/cl
 import { encodeBrowserIssue } from './encoding'
 
 const LABELS: IssueLabel[] = ['bug', 'documentation', 'feature', 'question']
-const MODEL_URL = import.meta.env.VITE_BROWSER_MODEL_URL || '/models/model_int8.onnx'
+// Development uses a local model; production downloads the public quantized graph.
+// Override with VITE_BROWSER_MODEL_URL for a pinned Hugging Face revision or another host.
+const MODEL_URL =
+  import.meta.env.VITE_BROWSER_MODEL_URL ||
+  (import.meta.env.PROD
+    ? 'https://huggingface.co/mazenalasas/issue-intent-onnx/resolve/main/model_int8.onnx'
+    : '/models/model_int8.onnx')
 
 type Session = import('onnxruntime-web/wasm').InferenceSession
 let sessionPromise: Promise<Session> | undefined

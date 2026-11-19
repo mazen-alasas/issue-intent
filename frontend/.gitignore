@@ -24,5 +24,12 @@ dist-ssr
 *.sw?
 
 # Local ONNX model and tokenizer artifacts; host separately for production
-public/models/
+# Keep the large local ONNX graph out of Git, but ship the small tokenizer files.
+public/models/*
+!public/models/tokenizer/
+public/models/tokenizer/*
+!public/models/tokenizer/tokenizer.json
+!public/models/tokenizer/tokenizer_config.json
+!public/models/tokenizer/special_tokens_map.json
+!public/models/tokenizer/config.json
 public/browser-fixtures.json
