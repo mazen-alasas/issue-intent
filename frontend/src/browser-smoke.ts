@@ -100,9 +100,10 @@ async function run() {
       )
     }
     log(`\nResult: ${passing}/${data.fixtures.length} passed`)
-    if (passing !== data.fixtures.length) log('Do not proceed with browser tokenization until differences are investigated.')
+    if (passing !== data.fixtures.length)
+      log('Do not proceed with browser tokenization until differences are investigated.')
   } catch (error) {
-    log(`ERROR: ${error instanceof Error ? error.stack ?? error.message : String(error)}`)
+    log(`ERROR: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`)
   } finally {
     runButton.disabled = false
   }

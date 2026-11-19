@@ -1,11 +1,9 @@
-
 name: CI
 
 on:
   push:
     branches:
       - main
-      - api-serving
   pull_request:
     branches:
       - main
@@ -14,10 +12,10 @@ permissions:
   contents: read
 
 jobs:
-  quality:
-    name: Lint, Format and Tests
+  python-quality:
+    name: Python lint, format and tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
@@ -42,3 +40,40 @@ jobs:
 
       - name: Run tests
         run: uv run pytest -q
+
+  frontend-quality:
+    name: Frontend lint, tests and static build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Build production assets
+        run: npm run build
+
+      - name: Validate static deployment output
+        run: node scripts/prepare-static-deploy.mjs

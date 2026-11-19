@@ -2,7 +2,7 @@
 
 React + TypeScript + Vite application with a GitHub-inspired issue editor, Markdown preview, and a four-class DistilBERT prediction panel.
 
-**Status (2026-11-19):** Browser-side ONNX INT8 inference works in the local production preview with the graph hosted on [Hugging Face](https://huggingface.co/mazenalasas/issue-intent-onnx). **No public Cloudflare Pages deployment has yet been verified.** The original FastAPI inference path is retained as an alternative.
+**Status (2026-11-19):** [Public Cloudflare Pages demo](https://issue-intent.pages.dev/) is live and was manually tested on real external GitHub issues by the project owner. The browser loads the ONNX INT8 graph from [Hugging Face](https://huggingface.co/mazenalasas/issue-intent-onnx), without a running Python server. This manual check is not a formal accuracy or cross-browser evaluation. FastAPI remains an optional alternative.
 
 ## Features
 
@@ -67,17 +67,17 @@ On November 19, the Vite build and ESLint passed and **19 Vitest tests** passed 
 
 ## Code map
 
-| Responsibility | Path |
-| --- | --- |
-| Main application | `src/App.tsx` |
-| UI and prediction display | `src/features/classification/PredictionPanel.tsx` |
-| Inference selection and API contract | `src/features/classification/api.ts` |
-| Browser inference | `src/browser/inference.ts` |
-| E4 preprocessing | `src/browser/e4.ts` |
-| Tokenization and input encoding | `src/browser/encoding.ts` |
-| Browser compatibility / parity harnesses | `src/browser-smoke.ts`, `src/browser-parity.ts` |
-| Markdown editor | `src/features/issue-editor/` |
-| Static build cleanup | `scripts/prepare-static-deploy.mjs` |
+| Responsibility                           | Path                                              |
+| ---------------------------------------- | ------------------------------------------------- |
+| Main application                         | `src/App.tsx`                                     |
+| UI and prediction display                | `src/features/classification/PredictionPanel.tsx` |
+| Inference selection and API contract     | `src/features/classification/api.ts`              |
+| Browser inference                        | `src/browser/inference.ts`                        |
+| E4 preprocessing                         | `src/browser/e4.ts`                               |
+| Tokenization and input encoding          | `src/browser/encoding.ts`                         |
+| Browser compatibility / parity harnesses | `src/browser-smoke.ts`, `src/browser-parity.ts`   |
+| Markdown editor                          | `src/features/issue-editor/`                      |
+| Static build cleanup                     | `scripts/prepare-static-deploy.mjs`               |
 
 ## Troubleshooting
 
@@ -89,4 +89,4 @@ On November 19, the Vite build and ESLint passed and **19 Vitest tests** passed 
 
 ## Validation scope
 
-Three browser ONNX fixtures matched expected labels; three browser E4/IDs/masks fixtures matched Python. A local production preview successfully predicted from the Hugging Face-hosted graph without FastAPI. These are representative checks, not full INT8 official-test evaluation or cross-browser performance guarantees. Public hosting remains pending.
+Three browser ONNX fixtures matched expected labels; three browser E4/IDs/masks fixtures matched Python. A local production preview successfully predicted from the Hugging Face-hosted graph without FastAPI. These are representative checks, not full INT8 official-test evaluation or cross-browser performance guarantees. The public Cloudflare Pages deployment was successfully smoke-tested by the owner on November 19, 2026.

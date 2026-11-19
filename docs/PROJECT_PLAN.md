@@ -2,7 +2,7 @@
 
 ## Current status and next release gate — November 19, 2026
 
-The previous roadmap and dated plans below are retained as an **engineering history**, not as instructions to repeat completed work. The web application merged to `main` in PR #8, ONNX work in PR #9, and browser integration was committed to `main` at `7c389df`. Work is now on `static-deployment` before its PR.
+The previous roadmap and dated plans below are retained as an **engineering history**, not as instructions to repeat completed work. The web application merged in PR #8, the ONNX work in PR #9, and the static deployment in PR #10 (`main` at merge commit `735dcbd`). The browser demo is now publicly deployed.
 
 | Stage | Verified state |
 | --- | --- |
@@ -14,9 +14,9 @@ The previous roadmap and dated plans below are retained as an **engineering hist
 | Browser graph and E4/tokenizer parity | 3/3 fixtures each; existing React UI integrated |
 | Local production preview | Passed; graph fetched from Hugging Face; 19 frontend tests passed |
 | Static build preparation | 12 output files, all within 25 MiB |
-| **Public Cloudflare Pages deployment** | **Pending — no public URL verified** |
+| **Public Cloudflare Pages deployment** | **Live at https://issue-intent.pages.dev/; manually smoke-tested by owner on November 19, 2026** |
 
-**Next steps:** finish documentation and Git review on `static-deployment`; open PR and merge; configure Cloudflare Pages (`frontend` root, `npm run build && node scripts/prepare-static-deploy.mjs`, `dist`, `VITE_INFERENCE_BACKEND=browser`); test a new public-browser session, including Hugging Face CORS/model fetch and tokenizer assets; record the real URL and deployment date; then finalize the portfolio narrative and Excalidraw diagrams. See [Static Deployment](STATIC_DEPLOYMENT.md).
+**Next steps:** complete a single repository hygiene and documentation audit, add frontend checks to CI, confirm full quality gates, and prepare the portfolio narrative and Excalidraw diagrams. The deployment settings and manual verification record are in [Static Deployment](STATIC_DEPLOYMENT.md).
 
 **Evidence boundaries:** PyTorch official-test F1 must not be attributed to INT8; three browser fixtures are not a full parity/accuracy evaluation; Docker microbenchmarks are not production SLAs.
 

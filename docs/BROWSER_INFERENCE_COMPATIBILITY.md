@@ -41,4 +41,4 @@ Open `/browser-smoke.html` for graph execution and `/browser-parity.html` for E4
 - **Do track** the small compatible tokenizer assets under `frontend/public/models/tokenizer/` for the public static site.
 - Do not confuse `/blob/main/model_int8.onnx` with the direct-download `/resolve/main/model_int8.onnx` URL.
 - First-load time, model RAM use, CORS, network and device capabilities vary. The observed fast repeated predictions benefit from cache/session reuse.
-- Public Cloudflare Pages deployment and uncached public-browser validation remain pending. See [Static Deployment](STATIC_DEPLOYMENT.md).
+- The owner verified the public [Cloudflare Pages demo](https://issue-intent.pages.dev/) with multiple real GitHub issue predictions on November 19, 2026. This does not establish automated cross-browser compatibility, uncached cold-load timing, or full INT8 accuracy. See [Static Deployment](STATIC_DEPLOYMENT.md).

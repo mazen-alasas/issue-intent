@@ -10,11 +10,15 @@ function normalizeProse(text: string): string {
   text = text.replace(/^[ \t]*[-*+][ \t]+/gm, '')
   // Process paths only outside URL spans, as in Python normalize_urls_paths.
   const urlPattern = /https?:\/\/[^\s<>"']+/g
-  const replacePaths = (part: string) => part.replace(/(^|[^\w/])\/(?:[\w.-]+\/)+[\w.-]+/g, (_whole, prefix: string, offset: number, source: string) => {
-    // Extract filename from matched path without the prefix.
-    const path = source.slice(offset + prefix.length).match(/^\/(?:[\w.-]+\/)+[\w.-]+/)?.[0]
-    return path ? `${prefix}PATH/${path.split('/').at(-1)}` : _whole
-  })
+  const replacePaths = (part: string) =>
+    part.replace(
+      /(^|[^\w/])\/(?:[\w.-]+\/)+[\w.-]+/g,
+      (_whole, prefix: string, offset: number, source: string) => {
+        // Extract filename from matched path without the prefix.
+        const path = source.slice(offset + prefix.length).match(/^\/(?:[\w.-]+\/)+[\w.-]+/)?.[0]
+        return path ? `${prefix}PATH/${path.split('/').at(-1)}` : _whole
+      },
+    )
   let result = ''
   let cursor = 0
   for (const match of text.matchAll(urlPattern)) {
@@ -38,7 +42,10 @@ function normalizeProse(text: string): string {
 function normalizeWhitespace(text: string): string {
   text = text.replace(/\r\n?/g, '\n')
   const endedWithNewline = text.endsWith('\n')
-  text = text.split('\n').map((line) => line.replace(/[ \t]+$/g, '')).join('\n')
+  text = text
+    .split('\n')
+    .map((line) => line.replace(/[ \t]+$/g, ''))
+    .join('\n')
   text = text.replace(/\n{3,}/g, '\n\n').trim()
   return text && endedWithNewline ? `${text}\n` : text
 }
