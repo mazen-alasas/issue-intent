@@ -1,14 +1,30 @@
 # issue-intent
 
-**GitHub issue classification · NLP experimentation · ONNX browser inference**
+**End-to-end GitHub issue classification with NLP, DistilBERT, and ONNX Runtime Web.**
 
-`issue-intent` classifies English GitHub issue reports into **bug**, **feature**, **question**, and **documentation**. The project follows the full ML engineering lifecycle: dataset audits, reproducible splits, classical and neural baselines, DistilBERT fine-tuning, held-out evaluation, CPU serving, ONNX quantization, and a GitHub-inspired React demo.
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Cloudflare_Pages-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://issue-intent.pages.dev/)
+[![Model](https://img.shields.io/badge/Model-Hugging_Face-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/mazenalasas/issue-intent-onnx)
+[![Dataset](https://img.shields.io/badge/Dataset-NLBSE'23-2563EB?style=for-the-badge)](https://github.com/nlbse2023/issue-report-classification)
 
-**Status (November 19, 2026):** [Live browser demo](https://issue-intent.pages.dev/) deployed on Cloudflare Pages. The static React application runs INT8 ONNX inference in the browser and fetches the public model from [Hugging Face](https://huggingface.co/mazenalasas/issue-intent-onnx); no Python inference server is required for the demo. The owner successfully tested predictions against several real GitHub issues, including issues from external repositories. This is a manual smoke test, **not** a new benchmark or measured generalization score. See the [static deployment guide](docs/STATIC_DEPLOYMENT.md).
+## Overview
+
+**issue-intent** predicts the intent of an English GitHub issue from its title and description. It assigns one of four labels: **`bug`**, **`feature`**, **`question`**, or **`documentation`**.
+
+The project covers the complete applied NLP workflow: auditing and preparing real-world issue reports, establishing evaluation protocols, comparing classical and neural baselines, fine-tuning DistilBERT, evaluating on the held-out test set, exporting and quantizing the model to ONNX, and shipping an interactive browser-only demo.
+
+The live application uses a GitHub-inspired React editor and runs **ONNX INT8 inference locally in the browser**. Cloudflare Pages serves the frontend; Hugging Face hosts the model weights. A separate FastAPI/ONNX Docker serving path is also implemented in this repository.
+
+## Live Demo
+
+**[Try the interactive demo](https://issue-intent.pages.dev/)** · **[Explore the hosted ONNX model](https://huggingface.co/mazenalasas/issue-intent-onnx)**
+
+**Demo Video**
+
+> The first browser prediction requires downloading the ~132 MiB ONNX model. Subsequent predictions can reuse browser caching and the initialized inference session. The demo does not create or modify GitHub issues.
 
 ## Results
 
-The selected checkpoint is DistilBERT (epoch 3, chosen by validation Macro F1). The official NLBSE'23 test set contains **142,320** issues.
+The selected **PyTorch DistilBERT checkpoint** achieved the following results on the **official held-out NLBSE'23 test set (142,320 issues)**:
 
 | Model | Split | Micro F1 | Macro F1 |
 | --- | --- | ---: | ---: |
@@ -17,114 +33,158 @@ The selected checkpoint is DistilBERT (epoch 3, chosen by validation Macro F1). 
 | DistilBERT | Validation | 0.883665 | 0.788362 |
 | **DistilBERT (selected PyTorch checkpoint)** | **Official test** | **0.886558** | **0.791175** |
 
-The official test recorded **126,175 correct** and **16,145 incorrect** predictions, weighted F1 **0.884702**. The first three rows use validation rather than the official test and are **not a same-split comparison**. `question` and `documentation` remain more difficult classes. See [final evaluation](docs/FINAL_EVALUATION_REPORT.md) and [model card](docs/MODEL_CARD.md).
+The development results above are **validation** scores and should not be compared as if they were measured on the official test split. The deployed **ONNX INT8** model was separately evaluated on the first **14,040 official-test examples** (a non-random 9.87% subset): **0.881339 Micro F1** and **0.781291 Macro F1**. These are partial evaluation results, not full-test scores for the deployed model.
 
-The **INT8 ONNX** graph was evaluated separately on the **first 14,040 test rows** (9.87%, non-random): Micro F1 **0.881339**, Macro F1 **0.781291**. These partial scores must not be presented as the full official-test performance of the deployed graph. [INT8 report](docs/ONNX_INT8_REPORT.md).
+For methods, per-class results, the confusion matrix, and evaluation boundaries, see the [Final Evaluation Report](docs/FINAL_EVALUATION_REPORT.md), [Model Card](docs/MODEL_CARD.md), and [ONNX INT8 Report](docs/ONNX_INT8_REPORT.md).
 
-## Dataset and modeling
+## Dataset
 
-The [NLBSE'23 issue classification dataset](https://github.com/nlbse2023/issue-report-classification) contains **1,418,201** labeled issues: **1,275,881** official training and **142,320** official test examples. After exact title/body deduplication and conflicting-label exclusion, **1,221,982** training-source examples remained. Stratified 85/15 splitting (`random_state=42`) produced **1,038,684** training and **183,298** validation examples. The official test remained held out.
+This project uses the [NLBSE'23 Issue Report Classification dataset](https://github.com/nlbse2023/issue-report-classification), consisting of real GitHub issues labeled by intent.
 
-Experiments progressed from title-only and title+body TF-IDF to preprocessing ablations, a PyTorch TextCNN, and DistilBERT. The selected E4 preprocessing modifies the issue **body**, preserving the title. Transformer input uses **256 tokens maximum**, a **48-token title budget**, and head/tail allocation for the body. Details: [project plan](docs/PROJECT_PLAN.md) and [progress log](docs/PROGRESS.md).
+| Dataset stage | Issues |
+| --- | ---: |
+| Original official training set | 1,275,881 |
+| Official held-out test set | 142,320 |
+| Total source dataset | **1,418,201** |
+| Prepared development pool | 1,221,982 |
+| Training split | 1,038,684 |
+| Validation split | 183,298 |
 
-## Demo architecture
+Data preparation handles missing text fields, removes identical title/body examples with consistent labels, and excludes exact-text groups with conflicting labels. The prepared data uses a **stratified 85/15 train/validation split** with `random_state=42`; the official test set was kept separate for final evaluation. Raw data and generated training artifacts are not committed to Git.
 
-```text
-Static React / TypeScript / Vite site
-  ├── GitHub-inspired issue editor and Markdown preview
-  ├── E4 body preprocessing + WordPiece tokenizer (browser)
-  ├── ONNX Runtime Web (WASM) ── fetches INT8 graph from Hugging Face
-  └── Predicted class, confidence, four class probabilities
+## Architecture
 
-Independent server path (preserved in this repository)
-  FastAPI /predict → PyTorch or ONNX INT8 CPU backend
-  Docker ONNX-only CPU image (556 MB; no PyTorch)
-```
+The architecture covers the data preparation, model experimentation and evaluation, ONNX conversion, browser deployment, and the independent API serving path.
 
-The demo **does not create or modify GitHub issues**. The browser model loads on first use; subsequent requests benefit from caching and session reuse. Confidence is an uncalibrated softmax score, not a guarantee of correctness.
+![Issue Intent System Architecture](/docs/assets/issue_intent_system_architecture.png)
 
-## Browser validation and deployment status
+At runtime, the browser loads the static React application from Cloudflare Pages, downloads the ONNX INT8 model from Hugging Face, and executes predictions using **ONNX Runtime Web (WASM)**. Inference does not require a running Python backend.
 
-| Evidence | Verified result |
+## Tech Stack
+
+| Area | Technologies |
 | --- | --- |
-| Browser ONNX graph compatibility | 3/3 reference cases matched expected labels |
-| Browser E4, token IDs, attention masks vs Python | 3/3 fixtures passed |
-| Local production preview | Model fetched from Hugging Face; real UI prediction succeeded |
-| Frontend checks | Vite build, ESLint, 19 Vitest tests passed |
-| Python checks | 372 pytest tests passed |
-| Static artifact preparation | 12 files, each within 25 MiB; local ONNX graph and unused WASM excluded |
-| Public Cloudflare Pages site | **Deployed** — owner verified UI and issue predictions on November 19, 2026; no automated cross-browser validation claimed |
+| **Data & analysis** | Python, Pandas, NumPy, DuckDB, PyArrow, Jupyter, Seaborn |
+| **Classical ML** | scikit-learn, TF-IDF, Logistic Regression, LinearSVC |
+| **Deep learning & NLP** | PyTorch, Hugging Face Transformers, DistilBERT, TextCNN |
+| **Optimization & inference** | ONNX, ONNX Runtime, ONNX Runtime Web (WASM), INT8 quantization |
+| **Backend & packaging** | FastAPI, Uvicorn, Docker |
+| **Frontend** | React, TypeScript, Vite, Markdown rendering |
+| **Deployment & hosting** | Cloudflare Pages, Hugging Face Hub |
+| **Engineering & testing** | Git, GitHub Actions, uv, Ruff, pytest, ESLint, Prettier, Vitest |
 
-These small parity checks do not constitute full browser accuracy or cross-browser testing. [Browser compatibility](docs/BROWSER_INFERENCE_COMPATIBILITY.md) · [Static deployment](docs/STATIC_DEPLOYMENT.md).
+## Project Structure
 
-## Local development
-
-Install the Python development environment and run the backend quality gate:
-
-```bash
-uv sync
-uv run ruff check --fix .
-uv run ruff format .
-uv run ruff check .
-uv run ruff format --check .
-uv run pytest -q
+```plaintext
+issue-intent/
+├── .github/
+│   └── workflows/
+│       └── ci.yml                 # Python and frontend quality checks
+├── docs/                          # Reports, model card, deployment guides
+│   ├── FINAL_EVALUATION_REPORT.md
+│   ├── MODEL_CARD.md
+│   ├── ONNX_INT8_REPORT.md
+│   └── STATIC_DEPLOYMENT.md
+├── frontend/                      # React + TypeScript browser application
+│   ├── public/models/tokenizer/   # Browser tokenizer assets
+│   ├── scripts/                   # Static deployment preparation
+│   └── src/
+│       ├── browser/               # E4 preprocessing, encoding, ONNX inference
+│       └── features/              # Issue editor and prediction UI
+├── notebooks/                     # Data exploration and preprocessing audits
+├── scripts/                       # ONNX export, benchmarks, validation
+├── src/
+│   ├── api/                       # FastAPI and CPU/ONNX inference
+│   ├── data/                      # Data preparation, splits, datasets
+│   ├── models/                    # Training, evaluation, model experiments
+│   └── preprocessing/             # Structured text preprocessing
+├── tests/                         # Python test suite
+├── .gitignore
+├── LICENSE
+├── Dockerfile
+├── pyproject.toml
+├── uv.lock
+└── README.md
 ```
 
-For the **browser-only frontend** (no running Python API required), ensure the public model and tokenizer assets are available as described in the [frontend guide](frontend/README.md):
+The tree shows the main components rather than every implementation file. Dataset archives, training checkpoints, and generated model artifacts are intentionally stored outside the repository.
+
+## Getting Started
+
+### Option A — Run the browser demo locally (recommended)
+
+**Requirements:** Git and a recent Node.js version compatible with this project's Vite setup.
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone https://github.com/mazen-alasas/issue-intent.git
+   ```
+
+2. **Navigate to the frontend directory:**
+
+   ```bash
+   cd issue-intent/frontend
+   ```
+
+3. **Install dependencies:**
+
+   ```bash
+   npm ci
+   ```
+
+4. **Start the development server:**
+
+   ```bash
+   VITE_INFERENCE_BACKEND=browser \
+   VITE_BROWSER_MODEL_URL=https://huggingface.co/mazenalasas/issue-intent-onnx/resolve/main/model_int8.onnx \
+   npm run dev
+   ```
+
+5. **Open the local URL printed by Vite**, typically `http://localhost:5173/`, and submit an issue title or description to analyze.
+
+The explicit environment variables are important: the code otherwise defaults to API mode and a local ONNX file in development. Browser inference downloads the public model from Hugging Face; **you do not need to start FastAPI or download the training dataset**. Tokenizer assets are included in `frontend/public/models/tokenizer/`.
+
+### Option B — Verify a production-style static build
 
 ```bash
-cd frontend
-npm ci
-npm run dev
-```
-
-For a deployment-equivalent local preview:
-
-```bash
-cd frontend
+cd issue-intent/frontend
 npm run build
 node scripts/prepare-static-deploy.mjs
 npm run preview -- --host 127.0.0.1
 ```
 
-Open `http://127.0.0.1:4173/`. The same frontend is publicly deployed at [issue-intent.pages.dev](https://issue-intent.pages.dev/). To run the optional **FastAPI backend** locally, see the [frontend guide](frontend/README.md) and [Docker deployment](docs/DOCKER_DEPLOYMENT.md). Training data and model checkpoints are not included in Git.
+The preview is normally available at `http://127.0.0.1:4173/`. For the separate FastAPI backend, checkpoint configuration, and ONNX-only Docker image, see the [Frontend Guide](frontend/README.md) and [Docker Deployment Guide](docs/DOCKER_DEPLOYMENT.md).
 
-## ONNX and serving measurements
+## Validation & Deployment
 
-| Measure | Observed result |
+| Check | Recorded evidence |
 | --- | --- |
-| FP32 → INT8 ONNX size | 255.54 → 132.44 MiB (48.17% reduction) |
-| Preliminary model-only CPU throughput | 8.63 → 12.30 issues/s (FP32 → INT8, batch 4) |
-| ONNX-only Docker image | 556 MB (vs 1.72 GB transitional image) |
-| Local HTTP benchmark, concurrency 1 | 56.986 requests/s; p95 21.388 ms |
-| Local HTTP benchmark, concurrency 4 | 136.316 requests/s; p95 35.309 ms |
+| Python test suite | **372 tests passed** |
+| Frontend test suite | **19 Vitest tests passed** |
+| Code quality | Ruff, ESLint, and frontend formatting checks passed locally |
+| Browser ONNX compatibility | 3/3 reference cases matched expected labels |
+| Browser preprocessing/tokenization | 3/3 parity fixtures matched Python inputs |
+| Production static build | Vite build and static asset validation passed |
+| Public demo | Cloudflare Pages deployed; manually smoke-tested on real GitHub issues |
 
-The HTTP benchmark used a repeated short issue, 100 measured requests and 10 warmups per configuration. It is not a production load test or comparable directly with model-only throughput. See [FP32 report](docs/ONNX_FP32_REPORT.md), [INT8 report](docs/ONNX_INT8_REPORT.md), and [HTTP benchmark report](docs/HTTP_BENCHMARK_REPORT.md).
-
-## Project status
-
-| Milestone | State |
-| --- | --- |
-| Data audit, evaluation protocol, classical baselines | Complete |
-| TextCNN and DistilBERT training | Complete |
-| Official test evaluation and artifact audit | Complete |
-| FastAPI, Docker, CI | Implemented and locally validated |
-| ONNX FP32 export, INT8 quantization, CPU serving | Complete with documented evaluation limits |
-| React application and browser inference | Implemented and locally validated |
-| Static build and Hugging Face model hosting | Validated locally / model published |
-| Cloudflare Pages public deployment | **Live; owner smoke-tested** |
-| Portfolio release and architecture diagrams | Finalization in progress |
+The static deployment excludes the local ONNX weights from Cloudflare assets because the model is fetched from Hugging Face. See the [Browser Compatibility Report](docs/BROWSER_INFERENCE_COMPATIBILITY.md) and [Static Deployment Guide](docs/STATIC_DEPLOYMENT.md) for technical details.
 
 ## Documentation
 
-- [Frontend setup and inference modes](frontend/README.md)
-- [Static deployment](docs/STATIC_DEPLOYMENT.md)
-- [Project plan](docs/PROJECT_PLAN.md) and [progress history](docs/PROGRESS.md)
-- [Model card](docs/MODEL_CARD.md) and [official evaluation](docs/FINAL_EVALUATION_REPORT.md)
-- [ONNX FP32](docs/ONNX_FP32_REPORT.md) and [ONNX INT8](docs/ONNX_INT8_REPORT.md)
-- [Browser compatibility](docs/BROWSER_INFERENCE_COMPATIBILITY.md)
-- [Docker](docs/DOCKER_DEPLOYMENT.md) and [HTTP benchmark](docs/HTTP_BENCHMARK_REPORT.md)
+- [Model Card](docs/MODEL_CARD.md) · [Final Evaluation Report](docs/FINAL_EVALUATION_REPORT.md)
+- [Experiment Plan](docs/PROJECT_PLAN.md) · [Development Record](docs/PROGRESS.md)
+- [ONNX FP32 Report](docs/ONNX_FP32_REPORT.md) · [ONNX INT8 Report](docs/ONNX_INT8_REPORT.md)
+- [Browser Compatibility](docs/BROWSER_INFERENCE_COMPATIBILITY.md) · [Static Deployment](docs/STATIC_DEPLOYMENT.md)
+- [Docker Deployment](docs/DOCKER_DEPLOYMENT.md) · [HTTP Benchmark](docs/HTTP_BENCHMARK_REPORT.md)
 
-## Limitations and licensing
+## License & Attribution
 
-This project does not establish generalization to private repositories, other issue trackers, or non-English issues. Some labels are ambiguous; near-duplicate and repository leakage risks are not fully eliminated. Token budgeting can omit important context. Confidence is not calibrated. The model weights are hosted separately; see the [Hugging Face model card](https://huggingface.co/mazenalasas/issue-intent-onnx) for attribution and upstream-license discussion. **A repository code license has not yet been selected.** Do not assume the base model's license automatically covers all dataset-derived artifacts.
+The original project source code is licensed under the **[MIT License](LICENSE)**. The [NLBSE'23 dataset and upstream competition repository](https://github.com/nlbse2023/issue-report-classification) and the [DistilBERT base model (Apache-2.0)](https://huggingface.co/distilbert/distilbert-base-uncased) have their own licensing and attribution requirements. The MIT license for this project's original code does **not** relicense the dataset, upstream assets, or trained model weights. See the [hosted model page](https://huggingface.co/mazenalasas/issue-intent-onnx) for the deployed artifact.
+
+## Contact
+
+Created by [Mazen Ahmed Alasas](https://github.com/mazen-alasas) — feel free to reach out!
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mazen-ahmed-alasas-772831244/)
+[![YouTube](https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/@mazen_labs)

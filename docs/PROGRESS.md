@@ -1,37 +1,40 @@
 # Project Progress
 
-**Project:** `issue-intent` · **Updated:** November 19, 2026 · **Current branch:** `main` (PR #10 merged; final portfolio review pending)
+**Project:** `issue-intent` · **Final project record:** November 19, 2026
+**Project scope:** Completed — portfolio-ready NLP / ML engineering system
+**Deployment:** [Live browser demo](https://issue-intent.pages.dev/) · [ONNX INT8 model](https://huggingface.co/mazenalasas/issue-intent-onnx)
 
-## Current milestone — Live static deployment and release finalization
+## Final project summary
 
-**Public deployment completed and manually smoke-tested by the project owner.** React/TypeScript/Vite now runs the selected INT8 DistilBERT graph in the browser with ONNX Runtime Web (WASM). E4 preprocessing, WordPiece tokenization, title/body budgeting and the existing prediction panel were retained. The graph is hosted at [mazenalasas/issue-intent-onnx](https://huggingface.co/mazenalasas/issue-intent-onnx); the static site does not need a running FastAPI server.
+`issue-intent` has completed its planned end-to-end engineering scope: NLBSE'23 data audit and preparation, a leakage-aware evaluation protocol, classical and TextCNN baselines, DistilBERT fine-tuning, an official held-out evaluation, FastAPI and Docker serving, ONNX FP32 export and INT8 quantization, browser inference, and a public Cloudflare Pages deployment.
 
-**November 19 verification:**
+The selected **PyTorch DistilBERT checkpoint** achieved **0.886558 Micro F1** and **0.791175 Macro F1** on all **142,320 official test issues**. The deployed **ONNX INT8** graph was evaluated separately on the first **14,040** test examples (a non-random prefix): **0.881339 Micro F1** and **0.781291 Macro F1**. These scores describe different models/evaluation scopes and must not be conflated.
 
-- Browser ONNX graph compatibility **3/3** reference cases; E4, input IDs and attention mask parity **3/3** fixtures.
-- Local production preview successfully fetched the graph from Hugging Face and classified an issue in the React UI. First request was slower than repeated predictions (download/cache/session reuse).
-- `npm run build`, `npm run lint` and `npm run test` passed (**19 frontend tests**). Python suite passed **372 tests**.
-- Static preparation excluded local ONNX weights, unused oversized WASM and browser fixtures: **12 files**, all within **25 MiB** each.
-- **Cloudflare Pages live:** [https://issue-intent.pages.dev/](https://issue-intent.pages.dev/) was deployed and manually tested on November 19, 2026. The owner compared predictions for multiple real GitHub issues against their existing issue labels. This is not a controlled evaluation, and no cross-browser or production-uptime guarantee was established. PR #10 merged `static-deployment` into `main` (`735dcbd`).
+### Implementation and verification
 
-**Related completed milestones:**
-
-| Milestone | Result |
+| Area | Final evidence |
 | --- | --- |
-| Official PyTorch DistilBERT test | Micro F1 0.886558; Macro F1 0.791175; 142,320 issues |
-| ONNX FP32/INT8 graph sizes | 255.54 / 132.44 MiB |
-| Partial INT8 evaluation | 14,040 non-random first test rows; Micro F1 0.881339; Macro F1 0.781291 |
-| ONNX-only CPU Docker | 556 MB, PyTorch absent; HTTP smoke tests passed |
-| HTTP benchmark | 56.986 req/s C1; 136.316 req/s C4; 100 short requests/run |
-| React browser demo | 3/3 graph fixtures; 3/3 tokenizer fixtures; local preview passed |
+| Data quality and evaluation | 1,221,982 prepared training-source records; stratified 85/15 development split; original official test held out |
+| Baselines and model selection | Classical NLP → PyTorch TextCNN → selected DistilBERT (validation Macro F1) |
+| Official PyTorch evaluation | 142,320 rows; Micro F1 0.886558; Macro F1 0.791175; saved artifacts audited |
+| ONNX model optimization | FP32 255.54 MiB → INT8 132.44 MiB (48.17% smaller) |
+| INT8 quality check | 14,040-row non-random test prefix; not a full official-test evaluation |
+| Standalone CPU serving | FastAPI endpoints and ONNX-only Docker image (556 MB) verified locally |
+| HTTP microbenchmark | 56.986 req/s (concurrency 1); 136.316 req/s (concurrency 4); fixed short-request conditions |
+| Browser compatibility | 3/3 ONNX graph fixtures and 3/3 preprocessing/tokenizer parity fixtures |
+| Frontend | React / TypeScript / Vite; 19 Vitest tests; ESLint and production build passed |
+| Python checks | Ruff lint and format checks passed; 372 pytest tests passed |
+| Static deployment preparation | Validated 11 output files, all ≤ 25 MiB; local ONNX and unnecessary assets excluded |
+| Public deployment | Cloudflare Pages demo deployed and manually smoke-tested on November 19, 2026 |
+| Frontend CI extension | Prepared in the repository cleanup changes; local checks passed; remote PR workflow confirmation is a separate release-control step |
 
-The **official full-test results apply to PyTorch**, not to the INT8 graph. Browser fixtures and local HTTP benchmarks are limited tests, not production accuracy or availability guarantees.
+**Scope boundary:** The project is complete as a portfolio implementation. A full official-test evaluation of the deployed INT8 graph, broad cross-browser testing, and a production availability SLA were not part of the completed validation evidence. The demo performs inference locally in the browser after downloading the graph from Hugging Face; FastAPI/Docker is an independent serving option.
 
-**Next:** finish the repository hygiene and documentation audit, add frontend CI coverage, verify a clean build and full quality gates, then prepare Excalidraw architecture diagrams and portfolio materials.
+**Release note:** Documentation and local quality checks are ready. The repository owner still controls the final Git commit, PR, merge, and optional version tag; this document does not assert those Git actions have happened.
 
 ## Historical progress and experiment record
 
-The dated sections below document the actual sequence of experiments and prior plans. Any earlier “current stage”, “next”, or “pending merge” language reflects its original time and is **superseded by the current milestone above**. Retained historical details are not instructions to rerun experiments.
+The dated sections below preserve original implementation decisions, measurements, challenges, and stage-by-stage plans. Earlier references to “next steps”, “pending”, or unmerged branches describe their **historical time**, not the final project status above.
 
 ## 1. Repository Foundation — Completed
 
@@ -879,4 +882,4 @@ uv run pytest -q
 4. Reproduce structured E4 preprocessing and tokenization in the browser and add parity tests.
 5. If accuracy and runtime are acceptable, integrate ONNX Runtime Web and deploy the React demo to free static hosting.
 
-At the time of this web-application milestone, ONNX and browser inference were not yet implemented. They were subsequently completed and validated locally; **public Cloudflare Pages deployment and Docker Compose remain unverified**. FastAPI and ONNX-only Docker remain independent server paths.
+At the time of this historical web-application milestone, ONNX and browser inference had not been implemented. Both were completed subsequently, and **the Cloudflare Pages demo was deployed and manually smoke-tested on November 19, 2026**. FastAPI and ONNX-only Docker remain independent server paths. Docker Compose was not established as a required production deployment.

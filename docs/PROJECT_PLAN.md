@@ -1,24 +1,29 @@
-# issue-intent — Project Plan
+# issue-intent — Final Project Plan and Engineering Decisions
 
-## Current status and next release gate — November 19, 2026
+**Project:** `issue-intent` · **Finalized project record:** November 19, 2026
+**Implementation scope:** Completed · [Live demo](https://issue-intent.pages.dev/) · [Hugging Face model](https://huggingface.co/mazenalasas/issue-intent-onnx)
 
-The previous roadmap and dated plans below are retained as an **engineering history**, not as instructions to repeat completed work. The web application merged in PR #8, the ONNX work in PR #9, and the static deployment in PR #10 (`main` at merge commit `735dcbd`). The browser demo is now publicly deployed.
+## Final implementation overview
 
-| Stage | Verified state |
+The planned end-to-end GitHub issue classification project has been implemented: dataset feasibility, data-quality filtering, reproducible development splits, classical baselines, structured preprocessing experiments, TextCNN, DistilBERT, official test evaluation, FastAPI / Docker CPU serving, ONNX optimization, React browser inference, and Cloudflare Pages deployment.
+
+| Workstream | Final state |
 | --- | --- |
-| Data quality, evaluation protocol, classical and neural experiments | Complete |
-| Selected DistilBERT official test | Micro F1 0.886558; Macro F1 0.791175 (PyTorch) |
-| FP32 ONNX export and INT8 quantization | Complete; INT8 quality assessed on a **14,040-row non-random prefix**, not full test |
-| ONNX-only CPU Docker | 556 MB; PyTorch absent; `/health` and `/predict` passed |
-| Docker HTTP benchmark | 56.986 req/s (C1); 136.316 req/s (C4), 100 short requests per run |
-| Browser graph and E4/tokenizer parity | 3/3 fixtures each; existing React UI integrated |
-| Local production preview | Passed; graph fetched from Hugging Face; 19 frontend tests passed |
-| Static build preparation | 12 output files, all within 25 MiB |
-| **Public Cloudflare Pages deployment** | **Live at https://issue-intent.pages.dev/; manually smoke-tested by owner on November 19, 2026** |
+| Dataset quality, reproducible splits and evaluation protocol | Completed |
+| Classical NLP, structured preprocessing, TextCNN and DistilBERT experiments | Completed |
+| Model selection and held-out evaluation | Completed; selected **PyTorch** checkpoint Micro F1 **0.886558**, Macro F1 **0.791175** on 142,320 official test issues |
+| FP32 ONNX export and INT8 quantization | Completed; INT8 tested on a **14,040-row non-random test prefix**, not all official test rows |
+| FastAPI / ONNX-only CPU Docker | Implemented and locally validated; 556 MB image |
+| React / TypeScript frontend and browser inference | Implemented; 3/3 browser ONNX fixtures and 3/3 preprocessing/tokenizer fixtures passed |
+| Cloudflare Pages + Hugging Face model hosting | Public demo deployed and manually smoke-tested November 19, 2026 |
+| Local quality gates | 372 Python tests; 19 frontend tests; lint, format, build and static asset checks passed |
+| Release administration | Owner-managed final commit/PR/merge/version tag; not an unimplemented model feature |
 
-**Next steps:** complete a single repository hygiene and documentation audit, add frontend checks to CI, confirm full quality gates, and prepare the portfolio narrative and Excalidraw diagrams. The deployment settings and manual verification record are in [Static Deployment](STATIC_DEPLOYMENT.md).
+**Model selection:** The chosen DistilBERT epoch-3 checkpoint maximized validation **Macro F1**. Official-test **Micro F1** is separately reported as the primary project metric. The browser uses the **INT8 ONNX graph** hosted on Hugging Face; the full official-test PyTorch score must **not** be relabeled as INT8 browser accuracy.
 
-**Evidence boundaries:** PyTorch official-test F1 must not be attributed to INT8; three browser fixtures are not a full parity/accuracy evaluation; Docker microbenchmarks are not production SLAs.
+**Architecture and documentation:** The repository README presents the completed system and the consolidated Excalidraw architecture. Detailed historical decisions and experiment records remain below and in the linked reports. Video publishing and portfolio presentation are owner-managed outside this repository.
+
+**Historical record:** Sections below preserve the original plan, stage descriptions, and recorded decisions. Past statements such as “pending” or “next” are historical snapshots, not the current implementation status.
 
 ---
 
@@ -35,7 +40,7 @@ The previous roadmap and dated plans below are retained as an **engineering hist
 
 The project emphasizes reproducible data preparation, leakage-aware evaluation, controlled classical/neural/transformer comparisons, resource-aware engineering, and a tested inference API. It is intended to provide a defensible technical portfolio and interview case study, not merely a high validation score.
 
-## 2. Roadmap and Current State
+## 2. Original Roadmap and Recorded Stage Outcomes
 
 | Stage | Branch | Deliverables | Status |
 |---|---|---|---|
@@ -52,10 +57,10 @@ The project emphasizes reproducible data preparation, leakage-aware evaluation, 
 | Docker Deployment | `api-serving` | CPU-only image, external checkpoint mount, smoke tests | Completed and committed (`19497d1`) |
 | GitHub Actions CI | `api-serving` | Automated lint, formatting, and checkpoint-independent tests | Implemented; first run passed (`3f99725`) |
 | Web Application | `web-application` | React/TypeScript/Vite issue editor, Markdown preview, live inference, frontend tests | Implemented, merged into main (PR #8) |
-| ONNX Browser Inference | `onnx-browser-inference` | FP32 ONNX validated, INT8 CPU candidate assessed; opt-in ONNX API backend | ONNX export, INT8 and browser inference implemented; PR #9 merged; public hosting pending |
-| Portfolio Release | `portfolio-release` (proposed) | Reproducibility, diagrams, polished project narrative | Planned |
+| ONNX Browser Inference | `onnx-browser-inference` | FP32 ONNX export, INT8 quantization, browser inference and API option | Completed; PR #9 merged; public Cloudflare Pages deployment followed in PR #10 |
+| Portfolio Documentation | Final repository cleanup | Reproducibility notes, consolidated architecture and public demo references | Final content prepared; final Git release actions remain owner-managed |
 
-**Optional:** Similar Issue Retrieval and Cloud Deployment, only if justified by measured needs.
+**Out-of-scope options:** Similar Issue Retrieval was not required for this release. Static cloud deployment was implemented later; the original wording above describes the historic roadmap.
 
 **Historical Git snapshot (2026-11-18):** `onnx-browser-inference` was previously at `1cf7b28` with uncommitted changes. This snapshot is superseded by the merged ONNX branch (PR #9) and subsequent browser integration on `main` (`7c389df`).
 
@@ -74,7 +79,7 @@ The project emphasizes reproducible data preparation, leakage-aware evaluation, 
 
 **Last reported validation:** 19 frontend tests passed in 3 files; ESLint, formatting, and Vite build passed; a real browser-to-API classification succeeded. A subsequent local API call returned `bug` with confidence `0.9969459176063538`. These observations do not replace the final pre-merge test run.
 
-**At the time of this historical web-application stage:** hosted public link, ONNX inference, quantization and Docker Compose were not implemented. ONNX and browser inference were completed in later stages; public hosting remains pending. GitHub Actions CI exists for earlier Python code; confirm whether frontend jobs are configured before claiming frontend CI coverage.
+**At the time of the web-application stage:** a public demo and browser ONNX inference had not yet been released. Both were implemented later and Cloudflare Pages was deployed via PR #10. The frontend CI extension was prepared in the final cleanup changes; local checks passed, while its remote PR workflow is separately verified by the repository owner.
 
 **Archived closure checklist (completed in subsequent commits):**
 
@@ -83,7 +88,7 @@ The project emphasizes reproducible data preparation, leakage-aware evaluation, 
 3. Push the branch, inspect GitHub Actions results, and merge to `main` after verification.
 4. Start ONNX export and browser-inference assessment from the refreshed `main` in a separate branch.
 
-**Subsequent completion:** ONNX INT8 API, ONNX-only Docker, browser WASM inference and tokenizer parity were implemented and locally verified. The 14,040-row INT8 evaluation remains partial; the public static site is pending. See `docs/ONNX_INT8_REPORT.md` and `docs/STATIC_DEPLOYMENT.md`.
+**Subsequent completion:** ONNX INT8 API, ONNX-only Docker, browser WASM inference and tokenizer parity were implemented and locally verified; the public static site was later deployed. The 14,040-row INT8 evaluation remains partial. See [ONNX INT8 Report](ONNX_INT8_REPORT.md) and [Static Deployment](STATIC_DEPLOYMENT.md).
 
 ## 3. Engineering Principles
 - Python 3.11, `uv` for environment/dependencies, and a flat `src/` structure.
@@ -404,7 +409,7 @@ DistilBERT checkpoint selection used validation **Macro F1**; the overall report
 ### 11.2 Completed stage and branch evidence
 - `transformer-finetuning`: implementation commit `6986b78`; detailed results in [`TRANSFORMER_EXPERIMENT.md`](TRANSFORMER_EXPERIMENT.md).
 - `final-evaluation`: completed and merged into `main` (confirmed base `09672bf`); see [`FINAL_EVALUATION_REPORT.md`](FINAL_EVALUATION_REPORT.md) and [`MODEL_CARD.md`](MODEL_CARD.md).
-- `api-serving`: inference `69fda88`, FastAPI `752dc87`, benchmark `073ecc7`, Docker `19497d1`, CI `3f99725`. Docker and CI commits were pushed to GitHub; merge into `main` has not been confirmed.
+- `api-serving`: inference `69fda88`, FastAPI `752dc87`, benchmark `073ecc7`, Docker `19497d1`, CI `3f99725`. These historical commits were subsequently integrated into the project; the earlier note about merge confirmation is superseded by the final implementation overview.
 
 ### 11.3 API, Docker, and CI validation
 - Endpoints: `GET /health`, `POST /predict`; model loaded at FastAPI startup.
@@ -425,4 +430,4 @@ DistilBERT checkpoint selection used validation **Macro F1**; the overall report
 4. Start `onnx-browser-inference` from the refreshed `main`: FP32 export, output parity, quantization experiments, browser preprocessing/tokenizer parity, and static-hosting feasibility.
 5. After the deployment strategy is verified, finalize portfolio documentation and separate architecture/pipeline diagrams.
 
-**Do not mark the web application merged, ONNX export completed, or public hosting deployed until those events are verified.**
+**Historical gate outcome:** The web application and ONNX integration were merged (PRs #8 and #9), and the public static deployment was completed (PR #10).
