@@ -18,7 +18,7 @@ The live application uses a GitHub-inspired React editor and runs **ONNX INT8 in
 
 **[Try the interactive demo](https://issue-intent.pages.dev/)** · **[Explore the hosted ONNX model](https://huggingface.co/mazenalasas/issue-intent-onnx)**
 
-**Demo Video**
+[**Demo Video**](https://github.com/user-attachments/assets/db37042a-9000-4ab6-bd62-a0f99a103b48)
 
 > The first browser prediction requires downloading the ~132 MiB ONNX model. Subsequent predictions can reuse browser caching and the initialized inference session. The demo does not create or modify GitHub issues.
 
