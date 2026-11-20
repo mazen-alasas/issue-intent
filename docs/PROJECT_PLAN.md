@@ -17,7 +17,7 @@ The planned end-to-end GitHub issue classification project has been implemented:
 | React / TypeScript frontend and browser inference | Implemented; 3/3 browser ONNX fixtures and 3/3 preprocessing/tokenizer fixtures passed |
 | Cloudflare Pages + Hugging Face model hosting | Public demo deployed and manually smoke-tested November 19, 2026 |
 | Local quality gates | 372 Python tests; 19 frontend tests; lint, format, build and static asset checks passed |
-| Release administration | Owner-managed final commit/PR/merge/version tag; not an unimplemented model feature |
+| Release administration | Completed; `v1.0.0` published on November 19, 2026 |
 
 **Model selection:** The chosen DistilBERT epoch-3 checkpoint maximized validation **Macro F1**. Official-test **Micro F1** is separately reported as the primary project metric. The browser uses the **INT8 ONNX graph** hosted on Hugging Face; the full official-test PyTorch score must **not** be relabeled as INT8 browser accuracy.
 
@@ -58,7 +58,7 @@ The project emphasizes reproducible data preparation, leakage-aware evaluation, 
 | GitHub Actions CI | `api-serving` | Automated lint, formatting, and checkpoint-independent tests | Implemented; first run passed (`3f99725`) |
 | Web Application | `web-application` | React/TypeScript/Vite issue editor, Markdown preview, live inference, frontend tests | Implemented, merged into main (PR #8) |
 | ONNX Browser Inference | `onnx-browser-inference` | FP32 ONNX export, INT8 quantization, browser inference and API option | Completed; PR #9 merged; public Cloudflare Pages deployment followed in PR #10 |
-| Portfolio Documentation | Final repository cleanup | Reproducibility notes, consolidated architecture and public demo references | Final content prepared; final Git release actions remain owner-managed |
+| Portfolio Documentation | `portfolio-final-release` | Reproducibility documentation, consolidated architecture, and public demo references | Completed; included in the initial stable release |
 
 **Out-of-scope options:** Similar Issue Retrieval was not required for this release. Static cloud deployment was implemented later; the original wording above describes the historic roadmap.
 
@@ -79,7 +79,7 @@ The project emphasizes reproducible data preparation, leakage-aware evaluation, 
 
 **Last reported validation:** 19 frontend tests passed in 3 files; ESLint, formatting, and Vite build passed; a real browser-to-API classification succeeded. A subsequent local API call returned `bug` with confidence `0.9969459176063538`. These observations do not replace the final pre-merge test run.
 
-**At the time of the web-application stage:** a public demo and browser ONNX inference had not yet been released. Both were implemented later and Cloudflare Pages was deployed via PR #10. The frontend CI extension was prepared in the final cleanup changes; local checks passed, while its remote PR workflow is separately verified by the repository owner.
+**At the time of the web-application stage:** public deployment and browser ONNX inference were not yet available. Both were implemented subsequently, with Cloudflare Pages deployed through PR #10. Frontend quality checks were later integrated into the GitHub Actions workflow.
 
 **Archived closure checklist (completed in subsequent commits):**
 
@@ -302,8 +302,7 @@ Post-build SHA-256, row count, and schema verification passed for both files. Th
 - `api-serving`: FastAPI endpoints, request validation, benchmark, CPU-only Docker image, smoke tests, and GitHub Actions CI implemented. Docker commit `19497d1`; CI commit `3f99725`; first CI run passed. The earlier merge status was unconfirmed at that time; later work was merged.
 - `web-application`: implemented React/TypeScript/Vite interface, functional GFM editor, live prediction integration, and frontend tests; subsequently merged into `main` (PR #8). Docker Compose not confirmed implemented.
 - `onnx-browser-inference` (now implemented and merged; original scope): FP32 export, parity checks, INT8 evaluation, browser inference, and static-hosting feasibility.
-- `portfolio-release`: finalize reproducibility, limitations, documentation, and separate Excalidraw architecture/data-flow diagrams after the selected demo strategy is validated.
-
+- `portfolio-release`: completed the final documentation, reproducibility review, and consolidated system architecture diagram included in the root README.
 - Keep deployment claims limited to environments actually tested; do not imply public hosting or production readiness.
 
 ## 8. Risks and Decision Rules
@@ -367,7 +366,7 @@ uv run pytest -q
 # uv run python -m src.preprocessing.build_dataset
 ```
 
-Historical note: full-scale classical training and E0–E5 ablations, FastAPI, Docker, CI, the web application and ONNX browser inference were subsequently completed. Public static deployment is the remaining technical milestone.
+Historical note: Full-scale classical training, E0–E5 ablations, FastAPI, Docker, CI, browser inference, and public Cloudflare Pages deployment were subsequently completed.
 
 ## Full-scale classical baselines — November 2026
 Dataset: structured_v1 (E4, body-only preprocessing).

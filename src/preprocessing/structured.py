@@ -324,10 +324,7 @@ def preprocess_structured(
     text: str,
     config: StructuredPreprocessingConfig | None = None,
 ) -> str:
-    """Apply implemented transformations to GitHub issue text.
-
-    Unimplemented configuration options are reserved for later stages.
-    """
+    """Apply configurable structured preprocessing to GitHub issue text."""
     if not isinstance(text, str):
         raise TypeError("text must be a string")
 

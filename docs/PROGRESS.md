@@ -30,7 +30,7 @@ The selected **PyTorch DistilBERT checkpoint** achieved **0.886558 Micro F1** an
 
 **Scope boundary:** The project is complete as a portfolio implementation. A full official-test evaluation of the deployed INT8 graph, broad cross-browser testing, and a production availability SLA were not part of the completed validation evidence. The demo performs inference locally in the browser after downloading the graph from Hugging Face; FastAPI/Docker is an independent serving option.
 
-**Release note:** Documentation and local quality checks are ready. The repository owner still controls the final Git commit, PR, merge, and optional version tag; this document does not assert those Git actions have happened.
+**Release:** Version `v1.0.0` was published on November 19, 2026, completing the initial portfolio release.
 
 ## Historical progress and experiment record
 
@@ -342,7 +342,7 @@ On `structured-preprocessing`, the following commits were created:
 
 - `5f8f376` — `feat: build versioned structured parquet datasets`
 
-The user confirmed the branch was merged into `main` and that the test suite passed. The Parquet files were confirmed ignored by Git. Exact post-merge HEAD and working-tree status should be checked before the next stage.
+The `structured-preprocessing` branch was merged into `main`, with the test suite passing successfully. Generated Parquet datasets remained excluded from Git tracking.
 
 ## 6. Historical Plan — Full Classical Baseline and Stage Closure (superseded)
 
@@ -627,7 +627,7 @@ curl -sS -X POST http://127.0.0.1:8000/predict \
 
 **Implementation:** `scripts/benchmark_api.py` and `tests/test_benchmark_api.py`; benchmark commit `073ecc7` — `perf: add reproducible API benchmarking and baseline results`. Confirm `scripts/__init__.py` from the repository if its presence is relevant.
 
-The user reported successfully executing the benchmark and saving `artifacts/benchmarks/api_baseline.json`. The benchmark performs sequential HTTP requests with short, medium, and long synthetic inputs and bounded concurrency scenarios. It measures end-to-end local HTTP latency, including preprocessing, tokenization, model inference, and response overhead. The first request in each scenario is **not** an independent measurement of model startup or a guaranteed cold inference.
+The API benchmark was executed successfully, with results saved to `artifacts/benchmarks/api_baseline.json`. It measured end-to-end local HTTP latency using short, medium, and long synthetic inputs under sequential and bounded-concurrency scenarios, including preprocessing, tokenization, inference, and response overhead. The first request in each scenario does not independently measure model startup or guarantee cold-inference performance.
 
 **Environment:** Local WSL2, CPU inference, FastAPI/Uvicorn, one active serving process. Measurements recorded on 2026-11-15 at `11:46:38 UTC`.
 
