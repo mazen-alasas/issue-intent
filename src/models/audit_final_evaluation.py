@@ -66,10 +66,6 @@ def calculate_from_confusion(matrix):
     total = int(matrix.sum())
     require(total > 0, "Predictions contain no rows")
 
-    true_ids = np.repeat(
-        np.arange(len(LABEL_NAMES)),
-        matrix.sum(axis=1),
-    )
     predicted_parts = []
 
     # Reconstruct label pairs from the small confusion matrix.
@@ -84,7 +80,10 @@ def calculate_from_confusion(matrix):
     y_true = np.concatenate(actual_parts)
     y_pred = np.concatenate(predicted_parts)
 
-    require(len(y_true) == len(true_ids), "Internal count mismatch")
+    require(
+        len(y_true) == total,
+        "Internal count mismatch",
+    )
 
     metrics = {
         "total_samples": total,
