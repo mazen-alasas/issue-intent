@@ -230,22 +230,32 @@ These local paths describe the recorded development environment; they are not ho
 
 ## 10. Deployment Considerations
 
-The model is **not deployed**. Before production use, the project should:
+The project ships two inference paths, both using the INT8 ONNX export of the selected checkpoint:
 
-1. Load and verify the intended checkpoint and matching tokenizer.
-2. Reuse the same body-only E4 preprocessing and input encoding.
-3. Validate and safely handle missing, unusually long, and sensitive inputs.
-4. Evaluate prediction confidence calibration and establish a human-review policy.
-5. Benchmark inference latency, throughput, and memory on the target hardware.
-6. Test API responses, failure handling, packaging, and dependency compatibility.
-7. Monitor drift and per-class quality after deployment.
+- **Browser demo:** a static React app on [Cloudflare Pages](https://issue-intent.pages.dev/) that runs ONNX Runtime Web locally, with weights fetched from [Hugging Face](https://huggingface.co/mazenalasas/issue-intent-onnx).
+- **FastAPI service:** an ONNX-only CPU Docker image (`/health`, `/predict`), verified locally.
 
-Planned downstream work includes a tested REST API, Docker packaging, CI, and portfolio-ready release documentation. These features should not be described as implemented until verified.
+The PyTorch checkpoint itself is not hosted publicly. The deployed INT8 graph was evaluated on the first 14,040 official-test rows only (Micro F1 0.881339, Macro F1 0.781291). This is a non-random 9.87% prefix, not a full-test result.
+
+This is a portfolio deployment, not a production system. The table below separates what was verified from what was not done.
+
+| Requirement | Status |
+|---|---|
+| Matching tokenizer and checkpoint labels | Verified |
+| Same E4 preprocessing and encoding in every path | Verified by parity fixtures (3/3) |
+| Input validation (length limits, empty input, strict types) | Implemented in the API schema |
+| Latency and throughput benchmark | Short local microbenchmark only (100 requests per run) |
+| API tests, packaging, CI | Implemented |
+| Full official-test evaluation of the INT8 graph | Not performed |
+| Error analysis | Not performed |
+| Drift and per-class monitoring | Not performed |
+
+Anyone planning operational use should treat the items marked "Not performed" as required work first.
 
 ## 11. Status
 
-**Model lifecycle:** Fine-tuned and evaluated; not deployed.
+**Model lifecycle:** Fine-tuned, evaluated on the official test set, exported to ONNX INT8, and deployed as a public browser demo. The project is complete as of release `v1.0.0`.
 
-**Evidence:** Saved official-test predictions, metrics, classification report, confusion matrix, a successful local artifact audit, and source-row alignment.
+**Evidence:** Saved official-test predictions, metrics, classification report, confusion matrix, a successful local artifact audit, and a partial INT8 evaluation.
 
-**Remaining work:** Serving, operational validation, confidence calibration, and generalization studies.
+**Scope boundary:** Full INT8 evaluation, confidence calibration, qualitative error analysis, and generalization studies were outside the scope of this project.
