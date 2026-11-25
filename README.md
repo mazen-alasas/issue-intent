@@ -22,18 +22,43 @@ The live application uses a GitHub-inspired React editor and runs **ONNX INT8 in
 
 > The first browser prediction requires downloading the ~132 MiB ONNX model. Subsequent predictions can reuse browser caching and the initialized inference session. The demo does not create or modify GitHub issues.
 
+
 ## Results
 
-The selected **PyTorch DistilBERT checkpoint** achieved the following results on the **official held-out NLBSE'23 test set (142,320 issues)**:
+### Validation (development comparison)
 
-| Model | Split | Micro F1 | Macro F1 |
-| --- | --- | ---: | ---: |
-| TF-IDF + Logistic Regression | Validation | 0.842650 | 0.706409 |
-| TextCNN | Validation | 0.852650 | 0.724730 |
-| DistilBERT | Validation | 0.883665 | 0.788362 |
-| **DistilBERT (selected PyTorch checkpoint)** | **Official test** | **0.886558** | **0.791175** |
+All models below were evaluated on the same 183,298-row validation split.
 
-The development results above are **validation** scores and should not be compared as if they were measured on the official test split. The deployed **ONNX INT8** model was separately evaluated on the first **14,040 official-test examples** (a non-random 9.87% subset): **0.881339 Micro F1** and **0.781291 Macro F1**. These are partial evaluation results, not full-test scores for the deployed model.
+| Model | Micro F1 | Macro F1 |
+| --- | ---: | ---: |
+| Majority-class baseline | 0.530508 | 0.173311 |
+| TF-IDF + Logistic Regression | 0.842650 | 0.706409 |
+| TextCNN | 0.852650 | 0.724730 |
+| DistilBERT | 0.883665 | 0.788362 |
+
+The models differ in more than architecture (preprocessing and input handling are not identical), so this is a development comparison, not a controlled ablation.
+
+### Official test (selected model only)
+
+The selected DistilBERT checkpoint was evaluated once on the official held-out NLBSE'23 test set (142,320 issues). The baselines were not evaluated on this set.
+
+| Metric | Score |
+| --- | ---: |
+| Micro F1 / Accuracy | 0.886558 |
+| Macro F1 | 0.791175 |
+
+| Class | Precision | Recall | F1 | Support |
+| --- | ---: | ---: | ---: | ---: |
+| bug | 0.910 | 0.935 | 0.922 | 74,781 |
+| documentation | 0.756 | 0.671 | 0.711 | 6,252 |
+| feature | 0.891 | 0.892 | 0.891 | 52,797 |
+| question | 0.700 | 0.589 | 0.640 | 8,490 |
+
+`question` and `documentation` are the weakest classes.
+
+### Deployed ONNX INT8 model
+
+The deployed INT8 graph was evaluated on the first 14,040 official-test examples (a non-random 9.87% subset): 0.881339 Micro F1 and 0.781291 Macro F1. These are partial results, not full-test scores.
 
 For methods, per-class results, the confusion matrix, and evaluation boundaries, see the [Final Evaluation Report](docs/FINAL_EVALUATION_REPORT.md), [Model Card](docs/MODEL_CARD.md), and [ONNX INT8 Report](docs/ONNX_INT8_REPORT.md).
 
