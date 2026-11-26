@@ -1,6 +1,7 @@
 import argparse
 import hashlib
 import json
+import shutil
 from pathlib import Path
 
 import duckdb
@@ -102,10 +103,12 @@ def shuffle_parquet(
                         title,
                         body,
                         labels,
-                        row_number() OVER () AS row_id
+                        row_number() OVER (
+                            ORDER BY title, body, labels
+                        ) AS row_id
                     FROM read_parquet({source})
                 )
-                ORDER BY hash(row_id, {seed})
+                ORDER BY hash(row_id, {seed}), row_id
             )
             TO {destination}
             (
@@ -149,8 +152,6 @@ def main():
     if temp_dir == input_path or temp_dir == output_path:
         raise ValueError("Invalid temporary directory")
 
-    temp_dir.mkdir(parents=True, exist_ok=False)
-
     partial_output = output_path.with_name(output_path.name + ".partial.parquet")
 
     if partial_output.exists():
@@ -159,15 +160,17 @@ def main():
     if output_path.exists():
         raise FileExistsError(f"Output already exists: {output_path}")
 
-    print("Computing source fingerprint...", flush=True)
-    source_fingerprint = fingerprint(
-        input_path,
-        args.batch_size,
-    )
-
-    print("Running external shuffle...", flush=True)
+    temp_dir.mkdir(parents=True, exist_ok=False)
 
     try:
+        print("Computing source fingerprint...", flush=True)
+        source_fingerprint = fingerprint(
+            input_path,
+            args.batch_size,
+        )
+
+        print("Running external shuffle...", flush=True)
+
         shuffle_parquet(
             input_path=input_path,
             output_path=partial_output,
@@ -194,6 +197,7 @@ def main():
             "seed": args.seed,
             "memory_limit": args.memory_limit,
             "row_group_size": args.row_group_size,
+            "duckdb_version": duckdb.__version__,
             "source": source_fingerprint,
             "output_fingerprint": output_fingerprint,
             "verified": True,
@@ -211,9 +215,12 @@ def main():
             flush=True,
         )
         print("Shuffle completed and verified.", flush=True)
+
     finally:
         if partial_output.exists():
             partial_output.unlink()
+
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 if __name__ == "__main__":
