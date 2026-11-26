@@ -22,6 +22,21 @@ The live application uses a GitHub-inspired React editor and runs **ONNX INT8 in
 
 > The first browser prediction requires downloading the ~132 MiB ONNX model. Subsequent predictions can reuse browser caching and the initialized inference session. The demo does not create or modify GitHub issues.
 
+## Training
+
+The repository includes a reproducible training pipeline for fine-tuning DistilBERT on the prepared NLBSE'23 issue classification dataset.
+
+The training workflow covers:
+
+- Dataset preparation and stratified train/validation splitting.
+- Structured text preprocessing using the `E4` configuration.
+- Deterministic shuffling of the training dataset.
+- DistilBERT fine-tuning with configurable training parameters.
+- Checkpointing, training resumption, and experiment metadata.
+
+For the complete setup instructions, commands, configuration details, expected artifacts, and recorded training results, see the **[DistilBERT Training Guide](docs/experiments/DISTILBERT_TRAINING.md)**.
+
+Training datasets and checkpoints are generated locally and are not included in the Git repository.
 
 ## Results
 
@@ -55,6 +70,21 @@ The selected DistilBERT checkpoint was evaluated once on the official held-out N
 | question | 0.700 | 0.589 | 0.640 | 8,490 |
 
 `question` and `documentation` are the weakest classes.
+
+### Comparison with NLBSE 2023 Baselines
+
+Our DistilBERT model was also evaluated against the baselines reported in the NLBSE 2023 Issue Report Classification challenge.
+
+| Model | Official Micro F1 / Accuracy |
+|---|---:|
+| FastText baseline | 85.10% |
+| SGD baseline | 85.20% |
+| **Our DistilBERT** | **88.66%** |
+| RoBERTa baseline | 89.06% |
+
+Our DistilBERT model outperforms the FastText and SGD baselines by **3.56** and **3.46 percentage points**, respectively, while remaining **0.40 percentage points** below the RoBERTa baseline.
+
+*Note: These figures are based on the results reported by the competition. They should be interpreted as a reference comparison rather than a controlled experiment, since training configurations and implementation details may differ.*
 
 ### Deployed ONNX INT8 model
 
@@ -106,6 +136,8 @@ issue-intent/
 │   └── workflows/
 │       └── ci.yml                 # Python and frontend quality checks
 ├── docs/                          # Reports, model card, deployment guides
+│   ├── experiments/
+│   │   └── DISTILBERT_TRAINING.md
 │   ├── FINAL_EVALUATION_REPORT.md
 │   ├── MODEL_CARD.md
 │   ├── ONNX_INT8_REPORT.md
@@ -199,6 +231,7 @@ The static deployment excludes the local ONNX weights from Cloudflare assets bec
 
 - [Model Card](docs/MODEL_CARD.md) · [Final Evaluation Report](docs/FINAL_EVALUATION_REPORT.md)
 - [Experiment Plan](docs/PROJECT_PLAN.md) · [Development Record](docs/PROGRESS.md)
+- [DistilBERT Training Guide](docs/experiments/DISTILBERT_TRAINING.md)
 - [ONNX FP32 Report](docs/ONNX_FP32_REPORT.md) · [ONNX INT8 Report](docs/ONNX_INT8_REPORT.md)
 - [Browser Compatibility](docs/BROWSER_INFERENCE_COMPATIBILITY.md) · [Static Deployment](docs/STATIC_DEPLOYMENT.md)
 - [Docker Deployment](docs/DOCKER_DEPLOYMENT.md) · [HTTP Benchmark](docs/HTTP_BENCHMARK_REPORT.md)
