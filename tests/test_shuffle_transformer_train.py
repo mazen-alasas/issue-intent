@@ -5,7 +5,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from data import shuffle_transformer_train as shuffle_module
+from src.data import shuffle_transformer_train as shuffle_module
 
 
 @pytest.fixture
