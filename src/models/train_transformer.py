@@ -93,13 +93,13 @@ def count_rows(path):
     return pq.ParquetFile(path).metadata.num_rows
 
 
-def make_loader(path, tokenizer, config, batch_size, shuffle):
+def make_loader(path, tokenizer, config, batch_size, shuffle, seed):
     dataset = TransformerIssueDataset(
         path=path,
         tokenizer=tokenizer,
         config=config,
         shuffle=shuffle,
-        seed=42,
+        seed=seed,
     )
 
     collator = DataCollatorWithPadding(
@@ -116,6 +116,39 @@ def make_loader(path, tokenizer, config, batch_size, shuffle):
     )
 
     return dataset, loader
+
+
+def save_run_config(
+    output_dir,
+    args,
+    device,
+    status,
+    completed_epochs,
+    best_macro_f1,
+    error=None,
+):
+    training_config = {
+        key: str(value) if isinstance(value, Path) else value
+        for key, value in vars(args).items()
+    }
+
+    metadata = {
+        "model": MODEL_NAME,
+        "device": str(device),
+        "smoke_test": args.smoke_test,
+        "status": status,
+        "completed_epochs": completed_epochs,
+        "best_macro_f1": best_macro_f1,
+        "training_config": training_config,
+    }
+
+    if error is not None:
+        metadata["error"] = error
+
+    (output_dir / "run_config.json").write_text(
+        json.dumps(metadata, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def move_batch(batch, device):
@@ -412,6 +445,7 @@ def main():
         config,
         args.batch_size,
         shuffle=True,
+        seed=args.seed,
     )
 
     _, val_loader = make_loader(
@@ -420,6 +454,7 @@ def main():
         config,
         args.batch_size,
         shuffle=False,
+        seed=args.seed,
     )
 
     train_rows = count_rows(args.train)
@@ -509,158 +544,186 @@ def main():
             flush=True,
         )
 
-    for epoch in range(start_epoch, args.epochs):
-        train_dataset.set_epoch(epoch)
+    status = "running"
+    completed_epochs = len(history)
 
-        if device.type == "cuda":
-            torch.cuda.synchronize(device)
-            torch.cuda.reset_peak_memory_stats(device)
-
-        epoch_start = time.perf_counter()
-
-        # -------------------------
-        # Training
-        # -------------------------
-
-        train_metrics = train_epoch(
-            model=model,
-            loader=train_loader,
-            optimizer=optimizer,
-            scheduler=scheduler,
-            scaler=scaler,
-            device=device,
-            grad_accum=args.grad_accum,
-            max_batches=args.max_train_batches,
-        )
-
-        if device.type == "cuda":
-            torch.cuda.synchronize(device)
-
-        training_seconds = time.perf_counter() - epoch_start
-
-        # -------------------------
-        # Validation
-        # -------------------------
-
-        validation_start = time.perf_counter()
-
-        val_metrics = evaluate(
-            model=model,
-            loader=val_loader,
-            device=device,
-            max_batches=args.max_val_batches,
-        )
-
-        if device.type == "cuda":
-            torch.cuda.synchronize(device)
-
-        validation_seconds = time.perf_counter() - validation_start
-
-        epoch_seconds = time.perf_counter() - epoch_start
-
-        peak_vram_gib = (
-            torch.cuda.max_memory_allocated(device) / 1024**3
-            if device.type == "cuda"
-            else None
-        )
-
-        record = {
-            "epoch": epoch + 1,
-            "train": train_metrics,
-            "validation": val_metrics,
-            "performance": {
-                "training_seconds": round(training_seconds, 2),
-                "validation_seconds": round(validation_seconds, 2),
-                "epoch_seconds": round(epoch_seconds, 2),
-                "peak_vram_gib": (
-                    round(peak_vram_gib, 3) if peak_vram_gib is not None else None
-                ),
-            },
-        }
-
-        history.append(record)
-
-        print(
-            json.dumps(record, indent=2),
-            flush=True,
-        )
-
-        # -------------------------
-        # Best model checkpoint
-        # -------------------------
-
-        if val_metrics["macro_f1"] > best_macro_f1:
-            best_macro_f1 = val_metrics["macro_f1"]
-            stale_epochs = 0
-
-            checkpoint_dir = output_dir / "best"
-
-            model.save_pretrained(checkpoint_dir)
-            tokenizer.save_pretrained(checkpoint_dir)
-        else:
-            stale_epochs += 1
-
-        # -------------------------
-        # Training history
-        # -------------------------
-
-        (output_dir / "history.json").write_text(
-            json.dumps(history, indent=2) + "\n",
-            encoding="utf-8",
-        )
-
-        # -------------------------
-        # Resume checkpoint
-        # -------------------------
-
-        save_training_state(
-            path=checkpoint_path,
-            model=model,
-            optimizer=optimizer,
-            scheduler=scheduler,
-            scaler=scaler,
-            epoch=epoch + 1,
-            best_macro_f1=best_macro_f1,
-            stale_epochs=stale_epochs,
-            history=history,
-            total_steps=total_steps,
-            steps_per_epoch=steps_per_epoch,
-        )
-
-        if args.stop_after_epoch is not None and epoch + 1 >= args.stop_after_epoch:
-            print(
-                "Stopped after requested epoch.",
-                flush=True,
-            )
-            break
-
-        if stale_epochs >= args.patience:
-            print(
-                "Early stopping triggered.",
-                flush=True,
-            )
-            break
-
-    metadata = {
-        "model": MODEL_NAME,
-        "device": str(device),
-        "smoke_test": args.smoke_test,
-        "best_macro_f1": best_macro_f1,
-        "training_config": vars(args),
-    }
-
-    metadata["training_config"] = {
-        key: str(value) if isinstance(value, Path) else value
-        for key, value in metadata["training_config"].items()
-    }
-
-    (output_dir / "run_config.json").write_text(
-        json.dumps(metadata, indent=2) + "\n",
-        encoding="utf-8",
+    save_run_config(
+        output_dir=output_dir,
+        args=args,
+        device=device,
+        status=status,
+        completed_epochs=completed_epochs,
+        best_macro_f1=best_macro_f1,
     )
 
+    try:
+        for epoch in range(start_epoch, args.epochs):
+            train_dataset.set_epoch(epoch)
+
+            if device.type == "cuda":
+                torch.cuda.synchronize(device)
+                torch.cuda.reset_peak_memory_stats(device)
+
+            epoch_start = time.perf_counter()
+
+            # -------------------------
+            # Training
+            # -------------------------
+
+            train_metrics = train_epoch(
+                model=model,
+                loader=train_loader,
+                optimizer=optimizer,
+                scheduler=scheduler,
+                scaler=scaler,
+                device=device,
+                grad_accum=args.grad_accum,
+                max_batches=args.max_train_batches,
+            )
+
+            if device.type == "cuda":
+                torch.cuda.synchronize(device)
+
+            training_seconds = time.perf_counter() - epoch_start
+
+            # -------------------------
+            # Validation
+            # -------------------------
+
+            validation_start = time.perf_counter()
+
+            val_metrics = evaluate(
+                model=model,
+                loader=val_loader,
+                device=device,
+                max_batches=args.max_val_batches,
+            )
+
+            if device.type == "cuda":
+                torch.cuda.synchronize(device)
+
+            validation_seconds = time.perf_counter() - validation_start
+
+            epoch_seconds = time.perf_counter() - epoch_start
+
+            peak_vram_gib = (
+                torch.cuda.max_memory_allocated(device) / 1024**3
+                if device.type == "cuda"
+                else None
+            )
+
+            record = {
+                "epoch": epoch + 1,
+                "train": train_metrics,
+                "validation": val_metrics,
+                "performance": {
+                    "training_seconds": round(training_seconds, 2),
+                    "validation_seconds": round(validation_seconds, 2),
+                    "epoch_seconds": round(epoch_seconds, 2),
+                    "peak_vram_gib": (
+                        round(peak_vram_gib, 3) if peak_vram_gib is not None else None
+                    ),
+                },
+            }
+
+            history.append(record)
+
+            print(
+                json.dumps(record, indent=2),
+                flush=True,
+            )
+
+            # -------------------------
+            # Best model checkpoint
+            # -------------------------
+
+            if val_metrics["macro_f1"] > best_macro_f1:
+                best_macro_f1 = val_metrics["macro_f1"]
+                stale_epochs = 0
+
+                checkpoint_dir = output_dir / "best"
+
+                model.save_pretrained(checkpoint_dir)
+                tokenizer.save_pretrained(checkpoint_dir)
+            else:
+                stale_epochs += 1
+
+            # -------------------------
+            # Training history
+            # -------------------------
+
+            (output_dir / "history.json").write_text(
+                json.dumps(history, indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+            # -------------------------
+            # Resume checkpoint
+            # -------------------------
+
+            save_training_state(
+                path=checkpoint_path,
+                model=model,
+                optimizer=optimizer,
+                scheduler=scheduler,
+                scaler=scaler,
+                epoch=epoch + 1,
+                best_macro_f1=best_macro_f1,
+                stale_epochs=stale_epochs,
+                history=history,
+                total_steps=total_steps,
+                steps_per_epoch=steps_per_epoch,
+            )
+
+            completed_epochs = epoch + 1
+
+            if (
+                args.stop_after_epoch is not None
+                and completed_epochs >= args.stop_after_epoch
+            ):
+                if completed_epochs < args.epochs:
+                    status = "stopped"
+                break
+
+            if stale_epochs >= args.patience and completed_epochs < args.epochs:
+                status = "early_stopped"
+                break
+
+            save_run_config(
+                output_dir=output_dir,
+                args=args,
+                device=device,
+                status=status,
+                completed_epochs=completed_epochs,
+                best_macro_f1=best_macro_f1,
+            )
+
+        if status == "running":
+            status = "completed"
+
+        save_run_config(
+            output_dir=output_dir,
+            args=args,
+            device=device,
+            status=status,
+            completed_epochs=completed_epochs,
+            best_macro_f1=best_macro_f1,
+        )
+
+    except Exception as exc:
+        save_run_config(
+            output_dir=output_dir,
+            args=args,
+            device=device,
+            status="failed",
+            completed_epochs=completed_epochs,
+            best_macro_f1=best_macro_f1,
+            error=f"{type(exc).__name__}: {exc}",
+        )
+        raise
+
     print(
-        "Training run completed.",
+        f"Training run {status}.",
         flush=True,
     )
 
